@@ -43,7 +43,7 @@ import { IoCheckmarkSharp } from "react-icons/io5";
 import { IoClose } from "react-icons/io5";
 import Draggable from 'react-draggable'; 
 
-interface Presence {
+export interface Presence {
     status: number;
     createdAt: Date;
     editedAt: Date;

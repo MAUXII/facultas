@@ -47,9 +47,10 @@ function processAlunos(alunos: Aluno[], selectedDate: Date | null) {
           const date = typeof createdAt === 'object' ? timestampToDate(createdAt) : new Date(createdAt);
           return !selectedDate || date.toDateString() === selectedDate.toDateString();
         })
-        .map(({ status, createdAt }) => ({
+        .map(({ status, createdAt, editedAt }) => ({
           status,
           createdAt: typeof createdAt === 'object' ? timestampToDate(createdAt) : new Date(createdAt),
+          editedAt,
         }));
   
       // Retorna Nome, RA e a presenca formatada

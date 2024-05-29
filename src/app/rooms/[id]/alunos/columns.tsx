@@ -10,18 +10,13 @@ import {
     SelectValue,
   } from "@/components/ui/select"
 import { Button } from "@/components/ui/button"
-  
-  interface Presence {
-    
-  }
+  import { Presence } from "./data-table"
 
 export type AlunoData = {
     id: string
     nome: string
     ra: string
-    presenca: {status: number;
-        createdAt: Date;
-        editedAt: Date;}[];
+    presenca: Presence[];
   }
    
   export const columns: ColumnDef<AlunoData>[] = [
