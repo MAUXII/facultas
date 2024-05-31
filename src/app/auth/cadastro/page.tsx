@@ -47,6 +47,8 @@ password: z.string()
 export default function Cadastro(){
   const router = useRouter();
 
+console.log(process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
+
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
