@@ -135,7 +135,7 @@ export default function Home() {
           </div>
         </section>
       ) : (
-        <div className="min-h-screen w-full z-[999] dark:bg-black items-center justify-center">                
+        <div className="min-h-screen flex w-full z-[999] dark:bg-black items-center justify-center">                
           <Image className='w-[50px] animate-ping' src="/logo.svg" height={600} width={600} alt='no more papers' />
         </div> // Adicione uma mensagem de carregamento enquanto o estado de autenticação estiver sendo verificado
       )}
