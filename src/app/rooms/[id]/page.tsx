@@ -148,9 +148,9 @@ export default function RoomPage() {
 
   return (
     <div>
-      <main className="flex w-full min-h-screen overflow-hidden items-center justify-center ">
+      <main className="flex w-full min-h-screen items-center justify-center ">
         {user && !loading ? ( // Se o usuário estiver autenticado e o carregamento não estiver em andamento
-          <section className="w-full flex pt-24 md:pt-10 py-14  items-center justify-center  md:pl-[352px] px-8">
+          <section className="w-full flex pt-24 py-10 md:py-10 md:pt-10 items-center justify-center  md:pl-[352px] px-8">
             <div className=" relative z-20 flex flex-col gap-6 justify-center w-[900px] max-w-[900px]">
               <div className='flex flex-col gap-6'>
                 <Link className="text-sm items-center flex w-fit gap-2 group hover:text-white/80  transition-colors" href="/rooms/">

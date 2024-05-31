@@ -106,7 +106,7 @@ export default function Home() {
                </Link>
     
               </div>
-              <div className='salas flex flex-wrap self-stretch flex-grow items-center justify-center content-center gap-5'>
+              <div className='salas flex flex-wrap self-stretch flex-grow items-center content-center gap-5'>
                 {salas && salas.length > 0 ? (
   salas
     .sort((a, b) => b.editedAt.toDate().getTime() - a.editedAt.toDate().getTime()) // Convertendo timestamp para Date com toDate() antes de subtrair
@@ -123,14 +123,19 @@ export default function Home() {
       />
     ))
 ) : (
-  <p className="w-full text-start text-white/60">Você ainda não tem nenhuma sala criada</p>
+  <div className="flex gap-2 justify-start self-start items-center">
+                  <p className="w-full text-white/60">Nenhuma sala encontrada</p>
+            
+                  
+                  
+                  </div>
 )}
               </div>
             </div>
           </div>
         </section>
       ) : (
-        <div>                
+        <div className="min-h-screen w-full z-[999] dark:bg-black items-center justify-center">                
           <Image className='w-[50px] animate-ping' src="/logo.svg" height={600} width={600} alt='no more papers' />
         </div> // Adicione uma mensagem de carregamento enquanto o estado de autenticação estiver sendo verificado
       )}
