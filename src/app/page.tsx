@@ -71,7 +71,7 @@ export default function Home() {
   
     fetchData();
   }, [user]); // Adiciona user como dependência
-  
+
   return (
     <main className="flex w-full min-h-screen items-center justify-center ">
       {user && !loading ? ( // Se o usuário estiver autenticado e o carregamento não estiver em andamento
