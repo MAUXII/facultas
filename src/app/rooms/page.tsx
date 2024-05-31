@@ -145,7 +145,7 @@ export default function Home() {
                       <DialogHeader className='items-start'>
                         <DialogTitle>Adicionar Sala</DialogTitle>
                         <DialogDescription>
-                          Make changes to your profile here. Click save when you're done.
+                          Make changes to your profile here. Click save when youre done.
                         </DialogDescription>
                       </DialogHeader>
                       <div className="flex flex-row w-full flex-1 gap-2 py-4">
