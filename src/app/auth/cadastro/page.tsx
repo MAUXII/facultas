@@ -114,7 +114,6 @@ console.log(process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
           title: `Login realizado com sucesso`,
           description: `Bem-vindo,", ${result.user.displayName}`,
         });
-        console.log("GitHub Login Success:", result.user);
         router.push('/');
       })
       .catch((error) => {
@@ -134,7 +133,6 @@ console.log(process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
           title: `Login realizado com sucesso`,
           description: `Bem-vindo,", ${result.user.displayName}`,
         });
-        console.log("Google Login Success:", result.user.displayName);
         router.push('/');
       })
       .catch((error) => {

@@ -113,8 +113,9 @@ export function DataTable<TData, TValue>(this: any, { columns, data, setSelected
 
     fetchSala();
   }, [id, user]);
-
+  
   const updateAttendanceStatus = async (statusValue: number) => {
+
     const now = new Date();
     const selectedRows = table.getFilteredSelectedRowModel().rows;
 

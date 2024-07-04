@@ -22,6 +22,8 @@ import { MdArrowOutward } from "react-icons/md";
 import { db } from "./firebase";
 import { Timestamp, addDoc, collection, getDocs } from "firebase/firestore";
 import { format } from "date-fns";
+import { useSala } from "./SalasContext";
+
 
 interface SalaData {
   alunos: string[];
@@ -39,43 +41,17 @@ export default function Home() {
   const router = useRouter();
   const currentDate = new Date();
   console.log(currentDate)
-
   const [user, loading, error] = useAuthState(auth);
-  const [salas, setSalas] = useState<SalaData[]>([]);
+  const { salas, fetchSalas } = useSala();
 
   useEffect(() => {
-    if (!user && !loading) {
-      router.push('/auth/login');
-    }
-  }, [user, loading, router]);
-
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return; 
-  
-      try {
-        const salasCollection = collection(db, 'salas');
-        const snapshot = await getDocs(salasCollection);
-        const data = snapshot.docs
-          .map((doc) => ({
-            ...(doc.data() as SalaData),
-            id: doc.id,
-          }))
-          .filter((sala) => sala.authorId === user.uid); // Acessa user.uid diretamente
-          console.log(data)
-        setSalas(data);
-      } catch (error) {
-        console.error('Error fetching salas: ', error);
-      }
-    };
-  
-    fetchData();
-  }, [user]); // Adiciona user como dependência
+    fetchSalas();
+  }, []);
 
   return (
     <main className="flex w-full min-h-screen items-center justify-center ">
       {user && !loading ? ( // Se o usuário estiver autenticado e o carregamento não estiver em andamento
-        <section className="w-full flex h-full min-h-screen  items-start justify-center pt-[85px] pb-6 md:pl-[352px] px-8">
+        <section className="w-full flex h-full min-h-screen  items-start justify-center pt-24 py-10 md:py-10 md:pt-10 pb-6 md:pl-[352px] px-8">
           
           <div className="w-full relative flex flex-col gap-12 justify-center max-w-[900px]">
           
@@ -118,8 +94,8 @@ export default function Home() {
         text={sala.alunos.length}// Adiciona 'alunos' ao texto
         link={sala.id}
         emoji={sala.tag}
-        
         home={true}
+        fetchSalas={fetchSalas}
       />
     ))
 ) : (

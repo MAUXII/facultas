@@ -1,24 +1,15 @@
 'use client'
-
-import { TbDatabaseImport } from "react-icons/tb";
-import { TbTableImport } from "react-icons/tb";
-
-import data from '@emoji-mart/data'
-import Picker from '@emoji-mart/react'
-
-
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import firebase from 'firebase/compat/app'; // Importe o Firebase compatível com v9
-import { useAuthState } from 'react-firebase-hooks/auth'; // Importe o hook useAuthState do react-firebase-hooks/auth
-import { auth } from '../firebase'; // Importe a instância 'auth' do arquivo firebase.ts
+import firebase from 'firebase/compat/app';
+import { useAuthState } from 'react-firebase-hooks/auth';
+import { auth } from '../firebase';
 import Image from 'next/image';
 import { SalaCard } from '@/components/salacard/salacard';
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { DialogClose } from '@radix-ui/react-dialog';
 import { FileInput } from "@/components/btn-dragandropfile/dd-btn";
 import { Sidebar } from "@/components/sidebar/sidebar";
 import Link from "next/link";
@@ -28,6 +19,19 @@ import EmoticonPicker from "@/components/emojiPicker/emojiPicker";
 import { db } from "../firebase";
 import { Timestamp, addDoc, collection, getDocs } from "firebase/firestore";
 import { format } from "date-fns";
+import { toast } from "@/components/ui/use-toast";
+import { z } from "zod";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useSala } from '../SalasContext';
 
 interface SalaData {
     alunos: string[];
@@ -46,9 +50,15 @@ export default function Home() {
   const [csvData, setCsvData] = useState<any[]>([]);
   const [text, setText] = useState(""); 
   const [user, loading, error] = useAuthState(auth);
-  const [salas, setSalas] = useState<SalaData[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [searchTerm, setSearchTerm] = useState(""); // Novo estado para o termo de busca
+  const [searchTerm, setSearchTerm] = useState(""); 
+  const [filePresent, setFilePresent] = useState(false); 
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const { salas, fetchSalas } = useSala();
+
+  useEffect(() => {
+    fetchSalas();
+  }, []);
 
   useEffect(() => {
     if (!user && !loading) {
@@ -56,57 +66,77 @@ export default function Home() {
     }
   }, [user, loading, router]);
 
-  const handleSubmit = async (event: React.FormEvent) => {
+  const FormSchema = z.object({
+    nameSala: z.string()
+      .min(1, "Insira um nome para sua sala")
+      .min(3, "O nome da sala deve ter pelo menos 5 caracteres")
+      .max(30, "O nome da sala deve ter no máximo 50 caracteres"),
+    tagSala: z.string(),
+    csvData: z.any().refine(() => filePresent, {
+      message: "Por favor, importe uma tabela CSV com os dados dos alunos",
+    })
+  });
+
+  const form = useForm<z.infer<typeof FormSchema>>({
+    resolver: zodResolver(FormSchema),
+    defaultValues: {
+      nameSala: "",
+      tagSala: "💢",
+      csvData: "",
+    },
+  });
+
+  useEffect(() => {
+    fetchSalas();
+  }, []);
+
+
+  const onSubmit = async (data: z.infer<typeof FormSchema>) => {
     setIsSubmitting(true);
-    console.log('foiii')
-    event.preventDefault();
-    const nameSala = document.getElementById("nameSala") as HTMLInputElement;
     const tagSala = document.getElementById("tagSala") as HTMLInputElement;
+    const sala = {
+      name: data.nameSala,
+      tag: tagSala.value,
+      alunos: csvData,
+      authorId: user?.uid,
+      authorName: user?.displayName,
+      createdAt: new Date(),
+      editedAt: new Date(),
+    };
 
-    if (nameSala && tagSala && csvData) {
-      const sala = {
-        name: nameSala.value,
-        tag: tagSala.value,
-        alunos: csvData,
-        authorId: user?.uid,
-        authorName: user?.displayName,
-        createdAt: new Date(),
-        editedAt: new Date(),
-      };
-      console.log(sala);
-      console.table(csvData)
+    console.log(sala);
+    console.table(csvData);
 
-      try {
-        const docRef = await addDoc(collection(db, "salas"), sala);
-        console.log("Document written with ID: ", docRef.id);
-      } catch (e) {
-        console.error("Error adding document: ", e);
-      }
+    try {
+      const docRef = await addDoc(collection(db, "salas"), sala);
+      console.log("Document written with ID: ", docRef.id);
+      toast({
+        title: "Sala criada com sucesso!",
+        description: "Sua sala foi criada e está disponível.",
+      });
+      await fetchSalas();
+       // Atualizar a lista de salas após criar a nova sala
+    } catch (e) {
+      console.error("Error adding document: ", e);
+      toast({
+        title: "Erro ao criar sala",
+        description: "Ocorreu um erro ao tentar criar a sala. Tente novamente mais tarde.",
+                variant: "destructive", 
+      });
+    } finally {
+      setIsSubmitting(false);
+      setIsDialogOpen(false);
     }
   };
 
   useEffect(() => {
-    const fetchData = async () => {
-      if (!user) return;
-
-      try {
-        const salasCollection = collection(db, 'salas');
-        const snapshot = await getDocs(salasCollection);
-        const data = snapshot.docs
-          .map((doc) => ({
-            ...(doc.data() as SalaData),
-            id: doc.id,
-          }))
-          .filter((sala) => sala.authorId === user.uid);
-
-        setSalas(data);
-      } catch (error) {
-        console.error('Error fetching salas: ', error);
-      }
-    };
-
-    fetchData();
-  }, [user]);
+    if (!isDialogOpen) {
+      // Resetar o formulário e o estado do arquivo CSV quando o diálogo for fechado
+      form.reset();
+      setCsvData([]);
+      setFilePresent(false);
+    }
+  }, [isDialogOpen, form]);
 
   const filteredSalas = salas.filter(
     sala =>
@@ -114,10 +144,16 @@ export default function Home() {
       sala.tag.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  const handleKeyPress = (e: { key: string; preventDefault: () => void; }) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+    }
+  };
+
   return (
-    <main className="flex w-full min-h-screen items-center justify-center ">
+    <main className="flex w-full min-h-screen items-center justify-center">
       {user && !loading ? (
-        <section className="w-full flex h-full min-h-screen items-start justify-center pt-[85px] pb-6 md:pl-[352px] px-8">
+        <section className="w-full flex h-full min-h-screen items-start justify-center pt-24 py-10 md:py-10 md:pt-10 pb-6 md:pl-[352px] px-8">
           <div className="w-full relative flex flex-col gap-12 justify-center max-w-[900px]">
             <div className='relative hidden overflow-clip bg-custom-gradient flex w-full h-[280px] justify-between flex-wrap ring-1 ring-white/20 rounded-xl p-10'>
               <div className='flex flex-col justify-between'>
@@ -132,55 +168,73 @@ export default function Home() {
               </div>
             </div>
             <div className='flex w-full flex-col gap-9'>
-              <div className='flex w-full items-center justify-between'>
+              <div className='flex w-full items-center justify-between '>
                 <h2 className='text-2xl font-medium'>Todas salas</h2>
-                <Dialog>
+                <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
                   <DialogTrigger asChild>
                     <button className='w-10 h-10 ring-white/20 ring-1 hover:bg-white/15 transition-colors hover:ring-white/30 hover:text-white/80 bg-white/10 text-white/70 rounded-lg text-xs flex items-center justify-center gap-2 '>
                       <a>+</a>
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="sm:max-w-[525px] items-center flex flex-col py-10 max-w-[440px] rounded-lg">
-                    <form onSubmit={handleSubmit}>
-                      <DialogHeader className='items-start'>
+                  <DialogContent className="sm:max-w-[525px] items-center flex flex-col py-10 max-w-[395px] rounded-lg">
+                    <Form {...form}>
+                      <DialogHeader className='items-start text-start'>
                         <DialogTitle>Adicionar Sala</DialogTitle>
                         <DialogDescription>
-                          Make changes to your profile here. Click save when youre done.
+                          Dê um nome a sua sala, importe sua tabela alunos e crie sua sala!
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="flex flex-row w-full flex-1 gap-2 py-4">
-                        <div className="flex flex-col gap-4 w-full">
-                          <Label htmlFor="nameSala" className="">
-                            Nome
-                          </Label>
-                          <Input id="nameSala" placeholder='Sala 1' className="" />
-                        </div>
+                      <div className="flex pt-2 flex-col w-full">
+                      <div className="flex flex-row w-full gap-2">
+                        <FormField
+                          control={form.control}
+                          name="nameSala"
+                          render={({ field }) => (
+                            <FormItem className=" flex flex-col gap-2 w-full">
+                              <FormLabel className="">Nome</FormLabel>
+                              <FormControl>
+                                <Input {...field} id="nameSala" placeholder='Sala 1' className="" />
+                              </FormControl>
+              
+                            </FormItem>
+                          )}
+                        />
                         <div className="flex flex-col gap-4 w-full max-w-12">
                           <Label htmlFor="tagSala" className="text-center select-none opacity-0">
-                            TAG
+                            Tag
                           </Label>
                           <EmoticonPicker />
                         </div>
+                        </div>
+                        <FormMessage className="mt-2">{form.formState.errors.nameSala?.message}</FormMessage>
                       </div>
-                      <DialogHeader className="items-start">
+                      
+                      <DialogHeader className="items-start pt-4 text-start w-full">
                         <DialogTitle>Importar Alunos</DialogTitle>
                         <DialogDescription>
-                          Make changes to your profile here. Click save when youre done.
+                          Importe uma tabela CSV com os dados dos alunos para a sala.
                         </DialogDescription>
                       </DialogHeader>
-                      <div className="flex flex-col gap-8 py-4">
-                        <div className="flex flex-col gap-4">
-                          <FileInput setCsvData={setCsvData} />
-                        </div>
-                      </div>
-                      <DialogFooter>
-                        <DialogClose>
-                          <Button type="submit" onClick={() => window.location.reload()} className="hover:bg-white/80">
-                            {isSubmitting ? 'Enviando' : 'Criar Sala'}
-                          </Button>
-                        </DialogClose>
+
+                      <FormField
+                        control={form.control}
+                        name="csvData"
+                        render={({ field }) => (
+                          <FormItem className="flex flex-col w-full">
+                            <FormControl>
+                              <FileInput setCsvData={setCsvData} setFilePresent={setFilePresent} {...field} />
+                            </FormControl>
+                            <FormMessage>{form.formState.errors.csvData?.message as string}</FormMessage>
+                          </FormItem>
+                        )}
+                      />
+                    
+                      <DialogFooter className="w-full flex">
+                        <Button className="hover:bg-white/80 flex mt-4 self-end" type="submit" onClick={form.handleSubmit(onSubmit)}>
+                          {isSubmitting ? 'Criando Sala' : 'Criar Sala'}
+                        </Button>
                       </DialogFooter>
-                    </form>
+                    </Form>
                   </DialogContent>
                 </Dialog>
               </div>
@@ -189,6 +243,7 @@ export default function Home() {
                   className='w-full px-5 py-4 rounded-lg bg-transparent ring-1 ring-white/20 placeholder:text-white/20'
                   placeholder={`Buscar Sala`}
                   value={searchTerm}
+                  onKeyDown={handleKeyPress}
                   onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </form>
@@ -203,11 +258,12 @@ export default function Home() {
                         text={sala.alunos.length}
                         link={sala.id}
                         emoji={sala.tag}
+                        fetchSalas={fetchSalas}
                       />
                     ))
                 ) : (
-                    <div className="flex gap-2 justify-start self-start items-center">
-                  <p className="w-full text-white/60">Nenhuma sala encontrada</p>
+                  <div className="flex gap-2 justify-start self-start items-center">
+                    <p className="w-full text-white/60">Nenhuma sala encontrada</p>
                   </div>
                 )}
               </div>

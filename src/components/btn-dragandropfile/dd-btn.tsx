@@ -16,31 +16,32 @@ interface HasFileProps {
 
 interface FileInputProps {
   setCsvData: (data: any[]) => void;
+  setFilePresent: (isPresent: boolean) => void;
 }
 
-export const FileInput = ({ setCsvData }: FileInputProps) => {
+export const FileInput = ({ setCsvData, setFilePresent }: FileInputProps) => {
   const [file, setFile] = useState<File | null>(null);
 
   const removeFile = useCallback(() => {
     setFile(null);
-    setCsvData([]); // Limpa os dados CSV quando o arquivo é removido
-  }, [setCsvData]);
+    setCsvData([]);
+    setFilePresent(false);
+  }, [setCsvData, setFilePresent]);
 
   const onDrop = useCallback((files: File[]) => {
     const csvFile = files[0];
     setFile(csvFile);
+    setFilePresent(true);
 
     Papa.parse(csvFile, {
       header: true,
       dynamicTyping: true,
-      encoding: "ISO-8859-1", // UTF-8 pra entender acento, mds odeio Brasil
+      encoding: "ISO-8859-1",
       complete: (results) => {
-        // Filtra as linhas para remover aquelas que possuem todas as células vazias ou null
         const filteredData = results.data.filter((row: any) => {
           return Object.values(row).some(value => value !== null && value !== "");
         });
 
-        // Adiciona o campo "presenca" para cada linha do CSV
         const dataWithPresenca = filteredData.map((row: any) => ({
           ...row,
           presenca: [{
@@ -50,14 +51,13 @@ export const FileInput = ({ setCsvData }: FileInputProps) => {
           }]
         }));
 
-        setCsvData(dataWithPresenca); // Define os dados CSV no estado pai
-        console.log('Parsed CSV Data:', dataWithPresenca);
+        setCsvData(dataWithPresenca);
       },
       error: (error) => {
         console.error('Error parsing CSV file:', error);
       },
     });
-  }, [setCsvData]);
+  }, [setCsvData, setFilePresent]);
 
   const dropzone = useDropzone({
     onDrop,
@@ -99,7 +99,7 @@ const Input = ({ dropzone }: InputProps) => {
           )}
         </div>
       </label>
-      <input {...inputProps} className="hidden" />
+      <input {...inputProps} className="hidden"/>
     </div>
   );
 };
@@ -107,12 +107,13 @@ const Input = ({ dropzone }: InputProps) => {
 const HasFile = ({ file, removeFile }: HasFileProps) => {
   return (
     <div className="flex flex-col h-[225px] items-center justify-center w-full rounded-md border border-neutral-200 bg-white px-3 py-2 text-sm ring-offset-white file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-neutral-950 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:border-neutral-800 dark:bg-neutral-950 dark:ring-offset-neutral-950 dark:placeholder:text-neutral-400 dark:focus-visible:ring-neutral-300">
-      <div className="w-full max-w-[11rem] ring-1 ring-white/20 rounded-md shadow-md flex gap-3 items-center justify-center">
+      <div className="w-full relative max-w-[16rem] ring-1 ring-white/20 rounded-md shadow-md flex gap-3 items-center justify-center">
         <FaFile className="text-lg my-4 ml-4" />
         <span className="text-base font-medium text-white my-4">{file.name}</span>
-        <button type="button" onClick={removeFile} className="place-self-start mt-1 p-1">
+        <button type="button" onClick={removeFile} className="place-self-start absolute right-0 top-0 p-1">
           <IoClose className="w-5 h-5" />
         </button>
+        <div className='w-5 h-5 p-1'></div>
       </div>
     </div>
   );

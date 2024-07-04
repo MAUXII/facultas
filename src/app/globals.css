@@ -5,3 +5,12 @@
   .bg-custom-gradient {
     background: linear-gradient(250deg, rgba(170, 170, 170, 0.00) 0%, rgba(255, 255, 255, 0.288) 898.48%);
 }
+
+.drag-none{
+  user-drag: none;
+  -webkit-user-drag: none;
+  user-select: none;
+  -moz-user-select: none;
+  -webkit-user-select: none;
+  -ms-user-select: none;
+}

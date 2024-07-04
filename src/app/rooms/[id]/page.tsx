@@ -118,7 +118,7 @@ export default function RoomPage() {
         <div className='text-center flex flex-col'>
           <h1 className='text-4xl font-bold'>Sala não encontrada</h1>
           <p className='mt-2'>A sala que você está procurando não existe ou foi removida.</p>
-          <Link href="/rooms/" className="mt-4 text-blue-500 hover:underline">Voltar para as salas</Link>
+          <Link href="/rooms/" className="mt-4 text-blue-500 hover:underline">Voltar para as minhas salas</Link>
         </div>
       </div>
     );
@@ -135,9 +135,9 @@ export default function RoomPage() {
   if (!acesso) {
     return <div className='w-full min-h-screen flex items-center justify-center px-8 md:pl-[352px]'>
     <div className='text-center flex flex-col'>
-      <h1 className='text-4xl font-bold'>Você não tem acesso à sala</h1>
-      <p className='mt-2'>A sala que você está procurando não existe ou foi removida.</p>
-      <Link href="/rooms/" className="mt-4 text-red-500 hover:underline">Voltar para as salas</Link>
+      <h1 className='text-4xl font-bold'>Acesso negado</h1>
+      <p className='mt-2'>Você não tem acesso a essa sala, você não a criou.</p>
+      <Link href="/rooms/" className="mt-4 text-red-500 hover:underline">Voltar as minhas salas</Link>
     </div>
   </div>
   }
@@ -148,9 +148,9 @@ export default function RoomPage() {
 
   return (
     <div>
-      <main className="flex w-full min-h-screen items-center justify-center ">
+      <main className="flex w-full min-h-screen items-start justify-center ">
         {user && !loading ? ( // Se o usuário estiver autenticado e o carregamento não estiver em andamento
-          <section className="w-full flex pt-24 py-10 md:py-10 md:pt-10 items-center justify-center  md:pl-[352px] px-8">
+          <section className="w-full flex pt-24 py-10 md:py-10 md:pt-10 items-start justify-center  md:pl-[352px] px-8">
             <div className=" relative z-20 flex flex-col gap-6 justify-center w-[900px] max-w-[900px]">
               <div className='flex flex-col gap-6'>
                 <Link className="text-sm items-center flex w-fit gap-2 group hover:text-white/80  transition-colors" href="/rooms/">
