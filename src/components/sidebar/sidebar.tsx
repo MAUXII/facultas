@@ -55,7 +55,7 @@ export const Sidebar=()=>{
             await signOut(auth);
             toast({
               title: "Usuário deslogado.",
-              description: "Você saiu da sua conta com sucesso, volte sempre.",
+              description: "Você saiu da sua conta, volte sempre.",
             });
       
             
