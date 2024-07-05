@@ -3,6 +3,8 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import { auth, db } from '../app/firebase';
 import { useAuthState } from 'react-firebase-hooks/auth';
 import { collection, getDocs, Timestamp } from 'firebase/firestore';
+import { useRouter } from 'next/navigation';
+import { toast } from '@/components/ui/use-toast';
 
 interface SalaData {
   alunos: any;
@@ -32,10 +34,12 @@ export const useSala = () => {
 
 export const SalaProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [salas, setSalas] = useState<SalaData[]>([]);
-  const [user] = useAuthState(auth);
+  const [user, loading, error] = useAuthState(auth);
+  const router = useRouter();
 
   const fetchSalas = async () => {
     if (!user) return;
+
 
     try {
       const salasCollection = collection(db, 'salas');
@@ -48,7 +52,11 @@ export const SalaProvider: React.FC<{ children: React.ReactNode }> = ({ children
         .filter((sala) => sala.authorId === user.uid);
       setSalas(data);
     } catch (error) {
-      console.error('Error fetching salas: ', error);
+      toast({
+        title: "Erro ao buscar salas:",
+        description: `${error}`,
+                variant: "destructive", 
+      });
     }
   };
 

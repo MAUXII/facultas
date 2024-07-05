@@ -12,6 +12,7 @@ import { Sidebar } from '@/components/sidebar/sidebar';
 import { FaArrowLeftLong } from "react-icons/fa6";
 import Link from 'next/link';
 import { format } from 'date-fns';
+import { toast } from '@/components/ui/use-toast';
 
 interface Aluno extends AlunoData {
     RA: string;
@@ -52,8 +53,7 @@ function processAlunos(alunos: Aluno[], selectedDate: Date | null) {
           createdAt: typeof createdAt === 'object' ? timestampToDate(createdAt) : new Date(createdAt),
           editedAt,
         }));
-  
-      // Retorna Nome, RA e a presenca formatada
+
       return {
         ...aluno,
         presenca: formattedPresenca,
@@ -87,7 +87,7 @@ export default function RoomPage() {
         if (docSnap.exists()) {
           const data = docSnap.data() as SalaData;
           setSala(data);
-          // Verificar se o usuário tem acesso
+          
           if (user && data && user.uid === data.authorId) {
             setAcesso(true);
           } else {
@@ -97,7 +97,11 @@ export default function RoomPage() {
           setNotFound(true);
         }
       } catch (error) {
-        console.error('Error fetching document: ', error);
+        toast({
+          title: "Erro ao fetchar o documento",
+          description: `${error}`,
+                  variant: "destructive", 
+        });
       }
     };
 
@@ -142,7 +146,6 @@ export default function RoomPage() {
   </div>
   }
 
-  {console.log("Alunos:", sala.alunos)}
   const alunosProcessados = processAlunos(sala.alunos, selectedDate);
  
 

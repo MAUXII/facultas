@@ -57,10 +57,6 @@ export default function Home() {
   const { salas, fetchSalas } = useSala();
 
   useEffect(() => {
-    fetchSalas();
-  }, []);
-
-  useEffect(() => {
     if (!user && !loading) {
       router.push('/auth/login');
     }
@@ -104,22 +100,18 @@ export default function Home() {
       editedAt: new Date(),
     };
 
-    console.log(sala);
-    console.table(csvData);
-
     try {
       const docRef = await addDoc(collection(db, "salas"), sala);
-      console.log("Document written with ID: ", docRef.id);
+      
       toast({
         title: "Sala criada com sucesso!",
         description: "Sua sala foi criada e está disponível.",
       });
       await fetchSalas();
-       // Atualizar a lista de salas após criar a nova sala
+
     } catch (e) {
-      console.error("Error adding document: ", e);
       toast({
-        title: "Erro ao criar sala",
+        title: "Erro ao criar sala.",
         description: "Ocorreu um erro ao tentar criar a sala. Tente novamente mais tarde.",
                 variant: "destructive", 
       });
@@ -131,7 +123,7 @@ export default function Home() {
 
   useEffect(() => {
     if (!isDialogOpen) {
-      // Resetar o formulário e o estado do arquivo CSV quando o diálogo for fechado
+
       form.reset();
       setCsvData([]);
       setFilePresent(false);

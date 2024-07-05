@@ -40,13 +40,19 @@ interface SalaData {
 export default function Home() {
   const router = useRouter();
   const currentDate = new Date();
-  console.log(currentDate)
   const [user, loading, error] = useAuthState(auth);
   const { salas, fetchSalas } = useSala();
 
   useEffect(() => {
     fetchSalas();
   }, []);
+
+  useEffect(() => {
+    if (!user && !loading) {
+      router.push('/auth/login');
+    }
+  }, [user, loading, router]);
+
 
   return (
     <main className="flex w-full min-h-screen items-center justify-center ">

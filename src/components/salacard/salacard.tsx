@@ -50,7 +50,7 @@ export const SalaCard = ({ title, text, emoji, link, key, home, editedAt, }: Sal
             fetchSalas();
         } catch (error) {
             toast({
-                title: "Erro ao deletar a sala",
+                title: "Erro ao deletar a sala.",
                 description: "Ocorreu um erro ao deletar sua sala",
                 variant: "destructive",
             });
@@ -69,13 +69,13 @@ export const SalaCard = ({ title, text, emoji, link, key, home, editedAt, }: Sal
                 tag: tagSala.value,
             });
             toast({
-                title: "Sala editada com sucesso",
+                title: "Sala editada com sucesso.",
                 description: "Sua sala foi editada e está disponível",
             });
             fetchSalas();
         } catch (error) {
             toast({
-                title: "Erro ao editar a sala",
+                title: "Erro ao editar a sala.",
                 description: "Ocorreu um erro ao editar sua sala",
                 variant: "destructive",
             });

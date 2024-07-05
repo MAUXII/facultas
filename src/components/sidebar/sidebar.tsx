@@ -34,6 +34,7 @@ import { RiMenu4Fill } from "react-icons/ri";
 import { Timestamp, collection, getDocs } from "firebase/firestore";
 import { Skeleton } from "@/components/ui/skeleton"
 import { useSala } from '../../app/SalasContext';
+import { toast } from "../ui/use-toast";
 
 interface SalaData {
     authorId: string;
@@ -52,9 +53,18 @@ export const Sidebar=()=>{
     const handleLogout = async () => {
         try {
             await signOut(auth);
-            console.log("Usuário deslogado com sucesso");
+            toast({
+              title: "Usuário deslogado.",
+              description: "Você saiu da sua conta com sucesso, volte sempre.",
+            });
+      
+            
         } catch (error) {
-            console.error("Erro ao deslogar:", error);
+          toast({
+            title: "Erro ao deslogar.",
+            description: "Ocorreu um erro ao tentar sair da sua conta. Tente novamente mais tarde.",
+                    variant: "destructive", 
+          });
         }
     };
 

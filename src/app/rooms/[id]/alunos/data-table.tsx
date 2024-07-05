@@ -42,6 +42,7 @@ import { MdKeyboardDoubleArrowLeft, MdKeyboardDoubleArrowRight } from "react-ico
 import { IoCheckmarkSharp } from "react-icons/io5";
 import { IoClose } from "react-icons/io5";
 import Draggable from 'react-draggable'; 
+import { toast } from "@/components/ui/use-toast";
 
 export interface Presence {
     status: number;
@@ -65,8 +66,7 @@ interface DataTableProps<TData, TValue> {
 }
 
 const eventLogger = (e: MouseEvent, data: Object) => {
-    console.log('Event: ', e);
-    console.log('Data: ', data);
+
   };
 
 export function DataTable<TData, TValue>(this: any, { columns, data, setSelectedDate }: DataTableProps<TData, TValue>) {
@@ -101,13 +101,11 @@ export function DataTable<TData, TValue>(this: any, { columns, data, setSelected
             setAcesso(false);
           }
 
-          console.log("Data de criação da sala:", data.createdAt.toDate());
           setSalaCreatedAt(data.createdAt.toDate());
         } else {
           setNotFound(true);
         }
       } catch (error) {
-        console.error('Error fetching document: ', error);
       }
     };
 
@@ -132,7 +130,6 @@ export function DataTable<TData, TValue>(this: any, { columns, data, setSelected
     for (const row of selectedRows) {
       const aluno = row.original as Aluno | undefined;
       if (!aluno) {
-          console.error('Aluno is undefined or null');
           continue;
       }
 
@@ -170,18 +167,32 @@ export function DataTable<TData, TValue>(this: any, { columns, data, setSelected
           try {
             await updateDoc(salaDocRef, { alunos: salaData.alunos });
             await updateDoc(doc(db, 'salas', id as string), { editedAt: now });
-            console.log(`Attendance status updated for aluno with RA: ${alunoRA}`);
+            
           } catch (error) {
-            console.error(`Error updating attendance status for aluno with RA: ${alunoRA}`, error);
+            
           }
         } else {
-          console.error("Aluno not found with RA:", alunoRA);
+          toast({
+            title: `Ocorreu algum erro ao atualizar os status dos RA's selecionados`,
+            variant: `destructive`,
+          });
         }
       } else {
-        console.error("Sala document not found");
+        toast({
+          title: `Ocorreu algum erro ao atualizar os status dos RA's selecionados`,
+          variant: `destructive`,
+        });
       }
     }
+    toast({
+      title: `Os status dos RA's selecionados foram atualizados com sucesso`,
+    });
+
+    const delay = 2000;
+
+setTimeout(() => {
     window.location.reload();
+}, delay);
   };
 
   const table = useReactTable({
@@ -208,8 +219,6 @@ export function DataTable<TData, TValue>(this: any, { columns, data, setSelected
   
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const totalRows = table.getFilteredRowModel().rows.length;
-
-  console.log("Todos os alunos disponíveis:", table.getFilteredRowModel().rows.map(row => row.original));
 
   useEffect(() => {
     if (selectedRows.length >= 1) {

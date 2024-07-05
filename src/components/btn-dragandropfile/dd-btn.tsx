@@ -4,6 +4,7 @@ import { IoClose } from "react-icons/io5";
 import { TbTableImport } from "react-icons/tb";
 import { FaFile } from "react-icons/fa";
 import Papa from 'papaparse';
+import { toast } from '../ui/use-toast';
 
 interface InputProps {
   dropzone: DropzoneState;
@@ -54,7 +55,11 @@ export const FileInput = ({ setCsvData, setFilePresent }: FileInputProps) => {
         setCsvData(dataWithPresenca);
       },
       error: (error) => {
-        console.error('Error parsing CSV file:', error);
+        toast({
+          title: "Erro ao converter seu arquivo CSV",
+          description: "Ocorreu um erro ao converter o .CSV, importe um arquivo válido",
+                  variant: "destructive", 
+        });
       },
     });
   }, [setCsvData, setFilePresent]);

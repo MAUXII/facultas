@@ -11,7 +11,6 @@ export const AuthLayout: React.FC<{ children: ReactNode }> = ({ children }) => {
 
   useEffect(() => {
     if (!user && !loading) {
-        console.log("nao tem usuario logado idiota")
       router.push('/auth/login');
     }
   }, [user, loading, router]);
