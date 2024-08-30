@@ -47,8 +47,6 @@ password: z.string()
 export default function Cadastro(){
   const router = useRouter();
 
-console.log(process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
-
     // eslint-disable-next-line react-hooks/rules-of-hooks
     const form = useForm<z.infer<typeof FormSchema>>({
         resolver: zodResolver(FormSchema),
@@ -70,7 +68,6 @@ console.log(process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
     
         createUserWithEmailAndPassword(auth, email, password)
         .then((userCredential: UserCredential) => {
-            console.log(data)
             const user = userCredential.user;
             
             // Atualize o nome de usuário com o displayName do usuário no Firebase
@@ -78,7 +75,6 @@ console.log(process.env.NEXT_PUBLIC_FIREBASE_API_KEY)
                 updateProfile(user, {
                     displayName: username
                 }).then(() => {
-                    console.log("Nome de usuário atualizado com sucesso:", username);
                     toast({
                         title: "Você criou sua conta com sucesso!",
                         description: "Agora você pode aproveitar o quanto quiser.",

@@ -51,9 +51,6 @@ export default function Login(){
       })
 
       function onSubmit(data: z.infer<typeof FormSchema>) {
-       
-
-        console.log(data)
         
       const emailInput = document.getElementById("email-login") as HTMLInputElement;
       const passwordInput = document.getElementById("password-login") as HTMLInputElement;
@@ -62,7 +59,6 @@ export default function Login(){
 
         signInWithEmailAndPassword(auth, email,password)
         .then((userCredential)=>{
-          console.log(userCredential)
           const user = userCredential.user;
           
 
@@ -100,7 +96,6 @@ export default function Login(){
           title: `Login realizado com sucesso`,
           description: `Bem-vindo, ${result.user.displayName}`,
         });
-        console.log("GitHub Login Success:", result.user);
         router.push('/');
       })
       .catch((error) => {
@@ -120,7 +115,6 @@ export default function Login(){
           title: `Login realizado com sucesso`,
           description: `Bem-vindo, ${result.user.displayName}`,
         });
-        console.log("Google Login Success:", result.user);
         router.push('/');
       })
       .catch((error) => {

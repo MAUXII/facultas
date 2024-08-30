@@ -59,9 +59,9 @@ type AlunoData = {
 interface Aluno extends AlunoData {}
 interface SalaDados extends SalaData {}
 
-interface DataTableProps<TData, TValue> {
-  columns: ColumnDef<TData, TValue>[];
-  data: TData[];
+interface DataTableProps {
+  columns: ColumnDef<AlunoData, any>[];
+  data: AlunoData[];
   setSelectedDate: (date: Date | null) => void;
 }
 
@@ -69,19 +69,44 @@ const eventLogger = (e: MouseEvent, data: Object) => {
 
   };
 
-export function DataTable<TData, TValue>(this: any, { columns, data, setSelectedDate }: DataTableProps<TData, TValue>) {
-  const [sorting, setSorting] = useState<SortingState>([{ id: 'Nome', desc: false }]);
-  const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
-  const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
-  const [rowSelection, setRowSelection] = React.useState({});
-  const [selectedDate, setDate] = useState<Date | null>(null);
-  const { id } = useParams();
-  const [acesso, setAcesso] = useState(false);
-  const [user, loading, error] = useAuthState(auth);
-  const [notFound, setNotFound] = useState(false);
-  const [salaCreatedAt, setSalaCreatedAt] = useState<Date | null>(null);
-  const [isSelected, setIsSelected] = useState(false);
-  const [isDraggableVisible, setIsDraggableVisible] = useState(false);
+  export function DataTable({ columns, data, setSelectedDate }: DataTableProps) {
+    const [sorting, setSorting] = useState<SortingState>([{ id: 'Nome', desc: false }]);
+    const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
+    const [columnVisibility, setColumnVisibility] = useState<VisibilityState>({});
+    const [rowSelection, setRowSelection] = React.useState({});
+    const [selectedDate, setDate] = useState<Date | null>(null);
+    const { id } = useParams();
+    const [acesso, setAcesso] = useState(false);
+    const [user, loading, error] = useAuthState(auth);
+    const [notFound, setNotFound] = useState(false);
+    const [salaCreatedAt, setSalaCreatedAt] = useState<Date | null>(null);
+    const [isSelected, setIsSelected] = useState(false);
+    const [isDraggableVisible, setIsDraggableVisible] = useState(false);
+    const [alunosData, setAlunosData] = useState<AlunoData[]>(data);
+    const [combinedData, setCombinedData] = useState<AlunoData[]>([]);
+
+
+
+    
+    useEffect(() => {
+      const updateCombinedData = () => {
+        if (selectedDate) {
+          const filteredData = alunosData.map(aluno => {
+            const filteredPresenca = aluno.presenca.filter(presenca => {
+              const createdAtDate = timestampToDate(presenca.createdAt);
+              return createdAtDate.toDateString() === selectedDate.toDateString();
+            });
+            return { ...aluno, presenca: filteredPresenca };
+          });
+          setCombinedData(filteredData);
+        } else {
+          setCombinedData(alunosData);
+        }
+      };
+  
+      updateCombinedData();
+    }, [selectedDate, alunosData]);
+  
 
   useEffect(() => {
     const fetchSala = async () => {
@@ -112,91 +137,149 @@ export function DataTable<TData, TValue>(this: any, { columns, data, setSelected
     fetchSala();
   }, [id, user]);
   
-  const updateAttendanceStatus = async (statusValue: number) => {
-
-    const now = new Date();
-    const selectedRows = table.getFilteredSelectedRowModel().rows;
-
-    function timestampToDate(timestamp: { seconds: any; nanoseconds: any; } | Date) {
-        if (timestamp instanceof Date) {
-          return timestamp;
-        } else {
-          const seconds = timestamp.seconds;
-          const nanoseconds = timestamp.nanoseconds;
-          return new Date(seconds * 1000 + nanoseconds / 1000000);
-        }
+  function timestampToDate(timestamp: { seconds: any; nanoseconds: any; } | Date) {
+    if (timestamp instanceof Date) {
+        return timestamp;
+    } else {
+        const seconds = timestamp.seconds;
+        const nanoseconds = timestamp.nanoseconds;
+        return new Date(seconds * 1000 + nanoseconds / 1000000);
     }
+}
+  
+const updateAttendanceStatus = async (statusValue: number, selectedDate: Date | null, id: string | undefined, table: any) => {
+  const now = new Date();
+  const selectedRows = table.getFilteredSelectedRowModel().rows;
 
-    for (const row of selectedRows) {
+  let updatedAlunos: Aluno[] = [];
+
+  for (const row of selectedRows) {
       const aluno = row.original as Aluno | undefined;
-      if (!aluno) {
-          continue;
-      }
+      if (!aluno) continue;
 
       const alunoRA = aluno.RA;
       const salaDocRef = doc(db, 'salas', id as string);
       const salaDocSnap = await getDoc(salaDocRef);
 
       if (salaDocSnap.exists()) {
-        const salaData = salaDocSnap.data() as SalaData;
-        const alunoIndex = salaData.alunos.findIndex(aluno => aluno.RA === alunoRA);
+          const salaData = salaDocSnap.data() as SalaData;
+          const alunoIndex = salaData.alunos.findIndex(aluno => aluno.RA === alunoRA);
 
-        if (alunoIndex !== -1) {
-          let alunoPresenca = salaData.alunos[alunoIndex].presenca || [];
+          if (alunoIndex !== -1) {
+              let alunoPresenca = salaData.alunos[alunoIndex].presenca || [];
 
-          const existingPresencaIndex = alunoPresenca.findIndex(presenca => {
-            const presencaDate = presenca.createdAt instanceof Date
-              ? presenca.createdAt
-              : timestampToDate(presenca.createdAt);
-            return presencaDate.toDateString() === selectedDate?.toDateString();
-          });
+              const existingPresencaIndex = alunoPresenca.findIndex(presenca => {
+                  const presencaDate = presenca.createdAt instanceof Date
+                      ? presenca.createdAt
+                      : timestampToDate(presenca.createdAt);
+                  return presencaDate.toDateString() === selectedDate?.toDateString();
+              });
 
-          if (existingPresencaIndex !== -1) {
-            alunoPresenca[existingPresencaIndex].status = statusValue;
-            alunoPresenca[existingPresencaIndex].editedAt = now;
+              if (existingPresencaIndex !== -1) {
+                  alunoPresenca[existingPresencaIndex].status = statusValue;
+                  alunoPresenca[existingPresencaIndex].editedAt = now;
+              } else {
+                  alunoPresenca.push({
+                      status: statusValue,
+                      createdAt: selectedDate ?? now,
+                      editedAt: now
+                  });
+              }
+
+              salaData.alunos[alunoIndex].presenca = alunoPresenca;
+              updatedAlunos.push(salaData.alunos[alunoIndex]);
+
+              try {
+                  await updateDoc(salaDocRef, { alunos: salaData.alunos });
+                  await updateDoc(doc(db, 'salas', id as string), { editedAt: now });
+              } catch (error) {
+                  toast({
+                      title: `Erro ao atualizar os status`,
+                      description: `Ocorreu algum erro ao atualizar os status dos RA's selecionados`,
+                      variant: `destructive`,
+                  });
+              }
           } else {
-            alunoPresenca.push({
-              status: statusValue,
-              createdAt: selectedDate ?? now,
-              editedAt: now
-            });
+              toast({
+                  title: `Erro ao atualizar os status`,
+                  description: `Ocorreu algum erro ao atualizar os status dos RA's selecionados`,
+                  variant: `destructive`,
+              });
           }
-
-          salaData.alunos[alunoIndex].presenca = alunoPresenca;
-
-          try {
-            await updateDoc(salaDocRef, { alunos: salaData.alunos });
-            await updateDoc(doc(db, 'salas', id as string), { editedAt: now });
-            
-          } catch (error) {
-            
-          }
-        } else {
-          toast({
-            title: `Ocorreu algum erro ao atualizar os status dos RA's selecionados`,
-            variant: `destructive`,
-          });
-        }
       } else {
-        toast({
-          title: `Ocorreu algum erro ao atualizar os status dos RA's selecionados`,
-          variant: `destructive`,
-        });
+          toast({
+              title: `Erro ao atualizar os status`,
+              description: `Ocorreu algum erro ao atualizar os status dos RA's selecionados`,
+              variant: `destructive`,
+          });
       }
-    }
-    toast({
-      title: `Os status dos RA's selecionados foram atualizados com sucesso`,
+  }
+
+  toast({
+      title: `Status atualizados com sucesso`,
+      description: `Os status dos RA's selecionados foram atualizados com sucesso`,
+  });
+  
+  setAlunosData(prevData => {
+    return prevData.map(aluno => {
+      const updatedAluno = updatedAlunos.find(updated => updated.RA === aluno.RA);
+      return updatedAluno ? updatedAluno : aluno;
     });
+  });
 
-    const delay = 2000;
+  return updatedAlunos;
+};
 
-setTimeout(() => {
-    window.location.reload();
-}, delay);
-  };
+const filteredData = alunosData.map(aluno => {
+  const filteredPresenca = aluno.presenca.filter(presenca => {
+
+    const createdAtDate = presenca.createdAt instanceof Date
+      ? presenca.createdAt
+      : timestampToDate(presenca.createdAt); 
+
+    return createdAtDate.toDateString() === selectedDate?.toDateString();
+  });
+
+  return { ...aluno, presenca: filteredPresenca };
+});
+
+
+const updateTableData = () => {
+  const filteredData = alunosData.map(aluno => {
+    const filteredPresenca = aluno.presenca.filter(presenca => {
+      
+      const createdAtDate = timestampToDate(presenca.createdAt);
+      return createdAtDate.toDateString() === selectedDate?.toDateString();
+    });
+    return { ...aluno, presenca: filteredPresenca };
+  });
+  setCombinedData(filteredData);
+};
+
+useEffect(() => {
+  if (selectedDate) {
+    updateTableData();
+  } else {
+    setAlunosData(data); // Reset to initial data if no date is selected
+  }
+}, [selectedDate, data]);
+
+const handleUpdateAttendanceStatus = async (statusValue: number) => {
+  const idString = Array.isArray(id) ? id[0] : id;
+  const updatedAlunos = await updateAttendanceStatus(statusValue, selectedDate, idString, table);
+
+  // Atualize os dados combinados após a atualização dos status de presença
+  setCombinedData(prevData => {
+    const updatedData = prevData.map(aluno => {
+      const updatedAluno = updatedAlunos.find(updated => updated.RA === aluno.RA);
+      return updatedAluno ? updatedAluno : aluno;
+    });
+    return updatedData;
+  });
+};
 
   const table = useReactTable({
-    data,
+    data: combinedData,
     columns,
     onSortingChange: setSorting,
     onColumnFiltersChange: setColumnFilters,
@@ -216,6 +299,27 @@ setTimeout(() => {
         sorting: [{ id: 'Nome', desc: true }]
       }
   });
+
+  const nextDay = () => {
+    if (selectedDate) {
+      const newDate = new Date(selectedDate);
+      newDate.setDate(newDate.getDate() + 1);
+      setDate(newDate);
+    }
+  };
+
+  const prevDay = () => {
+    if (selectedDate) {
+      const newDate = new Date(selectedDate);
+      newDate.setDate(newDate.getDate() - 1);
+      setDate(newDate);
+    }
+  };
+
+  const onDateChange = (date: Date | undefined) => {
+    setSelectedDate(date || null);
+    setDate(date || null);
+  };
   
   const selectedRows = table.getFilteredSelectedRowModel().rows;
   const totalRows = table.getFilteredRowModel().rows.length;
@@ -231,6 +335,7 @@ setTimeout(() => {
   const toggleDraggableVisibility = () => {
     setIsDraggableVisible(prev => !prev);
   };
+
   
   return (
     <div className="relative pb-[76px]">
@@ -261,10 +366,7 @@ setTimeout(() => {
                 className="flex"
                 mode="single"
                 selected={selectedDate || undefined}
-                onSelect={(date) => {
-                  setSelectedDate(date ?? null);
-                  setDate(date ?? null);
-                }}
+                onSelect={onDateChange}
                 disabled={(date) => {
                   if (date > new Date() || (salaCreatedAt && date < new Date(salaCreatedAt.setHours(0, 0, 0, 0)))) {
                     return true;
@@ -376,9 +478,9 @@ setTimeout(() => {
           
           <div className={`${isSelected ? 'flex' : 'hidden'} flex gap-2`}>
             <Button variant="outline"
-              className={`h-8 w-fit py-0 dark:bg-green-950/5 hover:dark:bg-green-950/10 dark:text-green-500 hover:dark:text-green-400 gap-2 lg:flex text-xs`} onClick={() => updateAttendanceStatus(1)}><IoCheckmarkSharp /></Button>
+              className={`h-8 w-fit py-0 dark:bg-green-950/5 hover:dark:bg-green-950/10 dark:text-green-500 hover:dark:text-green-400 gap-2 lg:flex text-xs`} onClick={() => handleUpdateAttendanceStatus(1)}><IoCheckmarkSharp /></Button>
             <Button variant="outline"
-              className={`h-8 w-fit py-0 dark:bg-red-950/5 hover:dark:bg-red-950/10 dark:text-red-500 hover:dark:text-red-400 gap-2 lg:flex text-xs`} onClick={() => updateAttendanceStatus(0)}><IoClose /></Button>
+              className={`h-8 w-fit py-0 dark:bg-red-950/5 hover:dark:bg-red-950/10 dark:text-red-500 hover:dark:text-red-400 gap-2 lg:flex text-xs`} onClick={() => handleUpdateAttendanceStatus(0)}><IoClose /></Button>
           </div>
         </div>
         
