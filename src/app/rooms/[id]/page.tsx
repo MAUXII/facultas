@@ -165,8 +165,8 @@ export default function RoomPage() {
                 <p className='text-sm text-white/50'>Criado por {sala.authorName} e editado pela última vez em {format(sala.editedAt.toDate(), "dd/MM/yyyy")}</p>
                 </div>
               </div>
-              <DataTable columns={columns} data={alunosProcessados} setSelectedDate={setSelectedDate}  />
-            </div>
+              <DataTable columns={columns} data={alunosProcessados} setSelectedDate={setSelectedDate} />
+              </div>
             <span className='absolute select-none overflow-hidden h-screen right-0 -top-0 [font-size:_clamp(100px,100vw,480px)] opacity-[2.5%]'>{sala.tag}</span>
           </section>
         ) : (

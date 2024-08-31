@@ -15,11 +15,11 @@ import { Button } from "@/components/ui/button"
 export type AlunoData = {
     id: string
     nome: string
-    ra: string
+    RA: string
     presenca: Presence[];
   }
    
-  export const columns: ColumnDef<AlunoData>[] = [
+  export const columns: ColumnDef<AlunoData, any>[] = [
     {
         id: "select",
         header: ({ table }) => (

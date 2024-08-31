@@ -51,6 +51,7 @@ export interface Presence {
 }
 
 type AlunoData = {
+    id: string
     nome: string
     RA: string
     presenca: Presence[];
@@ -59,8 +60,10 @@ type AlunoData = {
 interface Aluno extends AlunoData {}
 interface SalaDados extends SalaData {}
 
+
+
 interface DataTableProps {
-  columns: ColumnDef<AlunoData, any>[];
+  columns:  ColumnDef<AlunoData, any>[];
   data: AlunoData[];
   setSelectedDate: (date: Date | null) => void;
 }
@@ -68,7 +71,7 @@ interface DataTableProps {
 const eventLogger = (e: MouseEvent, data: Object) => {
 
   };
-
+  
   export function DataTable({ columns, data, setSelectedDate }: DataTableProps) {
     const [sorting, setSorting] = useState<SortingState>([{ id: 'Nome', desc: false }]);
     const [columnFilters, setColumnFilters] = useState<ColumnFiltersState>([]);
@@ -299,22 +302,6 @@ const handleUpdateAttendanceStatus = async (statusValue: number) => {
         sorting: [{ id: 'Nome', desc: true }]
       }
   });
-
-  const nextDay = () => {
-    if (selectedDate) {
-      const newDate = new Date(selectedDate);
-      newDate.setDate(newDate.getDate() + 1);
-      setDate(newDate);
-    }
-  };
-
-  const prevDay = () => {
-    if (selectedDate) {
-      const newDate = new Date(selectedDate);
-      newDate.setDate(newDate.getDate() - 1);
-      setDate(newDate);
-    }
-  };
 
   const onDateChange = (date: Date | undefined) => {
     setSelectedDate(date || null);
