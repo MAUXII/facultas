@@ -27,14 +27,28 @@ const config = {
           from: { height: "var(--radix-accordion-content-height)" },
           to: { height: "0" },
         },
+        "liquid-drift": {
+          "0%": { backgroundPosition: "0% 0%, 100% 100%, 0% 0%" },
+          "50%": { backgroundPosition: "30% 20%, 70% 80%, 0% 0%" },
+          "100%": { backgroundPosition: "0% 0%, 100% 100%, 0% 0%" },
+        },
       },
 
       colors: {
-        black: '#050505', 
+        black: "#050505",
+        ff: {
+          bg: "var(--ff-bg)",
+          surface: "var(--ff-surface)",
+          muted: "var(--ff-muted)",
+        },
+      },
+      borderRadius: {
+        ff: "var(--ff-radius)",
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
+        "liquid-drift": "liquid-drift 18s ease-in-out infinite",
       },
     },
   },

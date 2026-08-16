@@ -10,8 +10,14 @@
     "cssVariables": false,
     "prefix": ""
   },
+  "iconLibrary": "lucide",
   "aliases": {
     "components": "@/components",
     "utils": "@/lib/utils"
+  },
+  "registries": {
+    "@iconiq": "https://iconiqui.com/r/{name}.json",
+    "@ruixen": "https://ruixen.com/r/{name}.json",
+    "@glasscn": "https://glasscn-components.vercel.app/r/{name}.json"
   }
 }

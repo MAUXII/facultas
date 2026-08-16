@@ -27,6 +27,17 @@ yarn-error.log*
 
 # local env files
 .env*.local
+.env
+
+# product notes (private)
+/docs/internal/
+
+# design screenshots / moodboards (private — never ship)
+/docs/design-refs/
+
+# agent scratch and editor (not the public repo)
+/.scratch/
+/.cursor/
 
 # vercel
 .vercel

@@ -1,39 +1,68 @@
 import type { Metadata } from "next";
-import { Poppins } from "next/font/google";
+import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider"
+import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { Sidebar } from "@/components/sidebar/sidebar";
-import { SalaProvider } from './SalasContext';
+import { OverlayScrollbar } from "@/components/overlay-scrollbar/overlay-scrollbar";
+import { TopNav } from "@/components/top-nav/top-nav";
+import { CommunitiesProvider } from "./communities-context";
+import { APP_NAME } from "@/lib/brand";
+import { NextIntlClientProvider } from "next-intl";
+import { getLocale, getMessages } from "@/lib/locale-server";
 
-const poppins = Poppins({ weight: ["200", "300", "400", "500", "600", "700", "800"], subsets: ["latin"]});
+const dmSans = DM_Sans({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-ff-sans",
+});
+
+const fraunces = Fraunces({
+  subsets: ["latin"],
+  weight: ["500", "600"],
+  variable: "--font-ff-display",
+});
 
 export const metadata: Metadata = {
-  title: "PRTrack",
-  description: "Serviço de rastreamento de presença",
+  title: APP_NAME,
+  description: "Sua faculdade, num so lugar.",
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const locale = getLocale();
+  const messages = getMessages(locale);
+
   return (
-    <html lang="en" suppressHydrationWarning>
-       <ThemeProvider
+    <html lang={locale} suppressHydrationWarning>
+      <body
+        className={`${dmSans.variable} ${fraunces.variable} ${dmSans.className} bg-[var(--ff-bg)] text-[var(--ff-ink)] antialiased`}
+      >
+        <NextIntlClientProvider
+          locale={locale}
+          messages={messages}
+          timeZone="America/Sao_Paulo"
+          now={new Date()}
+          formats={{}}
+        >
+          <ThemeProvider
             attribute="class"
-            defaultTheme="system"
-            enableSystem
+            defaultTheme="dark"
+            enableSystem={false}
             disableTransitionOnChange
+            storageKey="ff-theme"
           >
-            <SalaProvider>
-      <body className={`${poppins.className} bg-black`} >  
-             {children}
-             <Sidebar/>
-             <Toaster />
+            <CommunitiesProvider>
+              <TopNav />
+              {children}
+              <OverlayScrollbar />
+              <Toaster />
+            </CommunitiesProvider>
+          </ThemeProvider>
+        </NextIntlClientProvider>
       </body>
-      </SalaProvider>
-      </ThemeProvider>
     </html>
   );
 }
