@@ -10,6 +10,7 @@ export const routes = {
   calendar: "/calendar",
   login: "/auth/login",
   signup: "/auth/signup",
+  avatar: "/auth/avatar",
   onboarding: "/onboarding",
   profile: "/profile",
 } as const;

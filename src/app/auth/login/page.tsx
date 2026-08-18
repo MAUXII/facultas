@@ -1,41 +1,37 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Button } from "@/components/ui/button";
 import {
   Form,
   FormControl,
   FormField,
   FormItem,
-  FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/use-toast";
-import Image from "next/image";
+import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { routes } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/client";
-import { APP_MARK, APP_NAME } from "@/lib/brand";
-import { useTranslations } from "next-intl";
+import { APP_MARK, APP_NAME, APP_TAGLINE } from "@/lib/brand";
+
+const FormSchema = z.object({
+  email: z.string().min(1, "Email obrigatorio").email("Email invalido"),
+  password: z.string().min(6, "Minimo 6 caracteres"),
+});
+
+const fieldClass =
+  "w-full bg-transparent px-5 py-4 text-base text-white outline-none placeholder:text-white/35";
 
 export default function Login() {
   const router = useRouter();
   const { toast } = useToast();
-  const t = useTranslations("auth");
   const [busy, setBusy] = useState(false);
-  const FormSchema = useMemo(
-    () =>
-      z.object({
-        email: z.string().min(1, t("emailRequired")).email(t("emailInvalid")),
-        password: z.string().min(6, t("passwordMin")),
-      }),
-    [t]
-  );
+
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
     defaultValues: { email: "", password: "" },
@@ -53,95 +49,102 @@ export default function Login() {
     if (error) {
       toast({
         variant: "destructive",
-        title: t("signInError"),
+        title: "Erro ao entrar",
         description: error.message,
       });
       return;
     }
 
-    toast({ title: t("welcome", { name: APP_NAME }) });
+    toast({ title: `Bem-vindo ao ${APP_NAME}` });
     router.push("/");
     router.refresh();
   };
 
   return (
-    <main className="flex min-h-screen w-full items-center justify-center bg-[var(--ff-bg)] p-4 px-8 text-white">
-      <section className="flex w-full max-w-[520px] flex-col justify-center gap-6">
-        <div className="flex items-center gap-4">
-          <Image
-            src="/logo.svg"
-            height={56}
-            width={56}
-            alt=""
-            className="aspect-square w-14"
-          />
-          <h1 className="text-3xl font-medium lowercase tracking-tight md:text-4xl">
-            {APP_MARK}
-          </h1>
-        </div>
+    <main className="relative min-h-screen overflow-hidden bg-[var(--ff-bg)] text-white">
+      <Link
+        href={routes.home}
+        className="absolute left-5 top-5 z-10 text-sm font-medium tracking-tight text-white/70 transition hover:text-white md:left-8 md:top-8"
+      >
+        {APP_MARK}
+      </Link>
 
-        <div className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-[var(--ff-surface)] px-6 py-8">
-          <div>
-            <h2 className="text-2xl font-semibold">{t("signIn")}</h2>
-            <p className="mt-1 text-sm text-white/45">
-              {t("signInHint")}
-            </p>
-          </div>
+      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col px-6 pb-10 pt-20 md:pt-24">
+        <h1 className="text-4xl font-semibold tracking-tight md:text-5xl">
+          Entrar
+        </h1>
+        <p className="mt-3 text-base text-white/40">{APP_TAGLINE}</p>
 
-          <Form {...form}>
-            <form
-              onSubmit={form.handleSubmit(onSubmit)}
-              className="flex flex-col gap-3"
-            >
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="mt-12 flex flex-1 flex-col gap-8"
+          >
+            <div className="flex flex-col gap-5">
               <FormField
                 control={form.control}
                 name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("email")}</FormLabel>
                     <FormControl>
-                      <Input
-                        className="border-white/10 bg-black/20"
-                        placeholder={t("emailPlaceholder")}
-                        {...field}
-                      />
+                      <LiquidGlass className="w-full rounded-2xl">
+                        <input
+                          {...field}
+                          type="email"
+                          placeholder="Email"
+                          autoComplete="email"
+                          className={fieldClass}
+                        />
+                      </LiquidGlass>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="password"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>{t("password")}</FormLabel>
                     <FormControl>
-                      <Input
-                        type="password"
-                        className="border-white/10 bg-black/20"
-                        placeholder="*******"
-                        {...field}
-                      />
+                      <LiquidGlass className="w-full rounded-2xl">
+                        <input
+                          {...field}
+                          type="password"
+                          placeholder="Senha"
+                          autoComplete="current-password"
+                          className={fieldClass}
+                        />
+                      </LiquidGlass>
                     </FormControl>
                     <FormMessage />
                   </FormItem>
                 )}
               />
-              <Button className="mt-2 h-12" type="submit" disabled={busy}>
-                {t("signIn")}
-              </Button>
-            </form>
-          </Form>
-        </div>
+            </div>
 
-        <p className="text-center text-sm text-white/45">
-          {t("noAccount")}{" "}
-          <Link className="font-medium text-white underline" href={routes.signup}>
-            {t("signUpLink")}
-          </Link>
-        </p>
-      </section>
+            <div className="mt-auto flex flex-col gap-5 pt-6">
+              <button
+                type="submit"
+                disabled={busy}
+                className="w-full rounded-2xl bg-white py-4 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
+              >
+                {busy ? "Entrando…" : "Continuar"}
+              </button>
+              <p className="text-center text-sm text-white/35">
+                Nao tem conta?{" "}
+                <Link
+                  href={routes.signup}
+                  className="font-medium text-white/70 transition hover:text-white"
+                >
+                  Criar conta
+                </Link>
+              </p>
+            </div>
+          </form>
+        </Form>
+      </div>
     </main>
   );
 }

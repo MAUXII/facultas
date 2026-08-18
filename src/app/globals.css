@@ -157,6 +157,26 @@ body::-webkit-scrollbar {
   }
 }
 
+.ff-nav-glow {
+  animation: ff-nav-glow-shift 22s ease-in-out infinite;
+}
+
+@keyframes ff-nav-glow-shift {
+  0%,
+  100% {
+    filter: hue-rotate(-22deg);
+  }
+  50% {
+    filter: hue-rotate(32deg);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-nav-glow {
+    animation: none;
+  }
+}
+
 .bg-custom-gradient {
   background: linear-gradient(
     250deg,

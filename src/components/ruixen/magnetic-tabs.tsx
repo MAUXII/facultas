@@ -8,10 +8,8 @@ import {
   useSpring,
 } from "motion/react";
 import { playRuixenClick } from "@/lib/ruixen-click";
-
-/**
- * Tabs com indicador que segue o hover.
- */
+import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
+import { cn } from "@/lib/utils";
 
 function tick(ref: React.MutableRefObject<number>) {
   const now = performance.now();
@@ -19,8 +17,6 @@ function tick(ref: React.MutableRefObject<number>) {
   ref.current = now;
   playRuixenClick("tab");
 }
-
-/* ── Types ── */
 
 interface MagneticTabItem {
   value: string;
@@ -36,12 +32,6 @@ interface MagneticTabsProps {
   className?: string;
 }
 
-/* ── CSS ── */
-
-const CSS = `.mt{--mt-bg:rgba(255,255,255,.72);--mt-border:rgba(0,0,0,.06);--mt-shadow:0 0 0 .5px rgba(0,0,0,.04),0 2px 4px rgba(0,0,0,.04),0 8px 24px rgba(0,0,0,.06);--mt-pill:rgba(0,0,0,.06);--mt-text:rgba(0,0,0,.5);--mt-text-active:rgba(0,0,0,.9);--mt-content-bg:rgba(0,0,0,.02);--mt-content-border:rgba(0,0,0,.06)}.dark .mt,[data-theme="dark"] .mt{--mt-bg:var(--ff-surface);--mt-border:rgba(255,255,255,.06);--mt-shadow:0 0 0 .5px rgba(255,255,255,.04),0 2px 4px rgba(0,0,0,.2),0 8px 24px rgba(0,0,0,.3);--mt-pill:rgba(255,255,255,.08);--mt-text:rgba(255,255,255,.45);--mt-text-active:rgba(255,255,255,.9);--mt-content-bg:rgba(255,255,255,.03);--mt-content-border:rgba(255,255,255,.06)}`;
-
-/* ── Constants ── */
-
 const HOVER_SPRING = { type: "spring" as const, stiffness: 300, damping: 25 };
 const SELECT_SPRING = { type: "spring" as const, stiffness: 500, damping: 22 };
 const CONTENT_SPRING = {
@@ -49,8 +39,6 @@ const CONTENT_SPRING = {
   stiffness: 250,
   damping: 25,
 };
-
-/* ── Component ── */
 
 export function MagneticTabs({
   items = [
@@ -84,7 +72,7 @@ export function MagneticTabs({
   const barRef = useRef<HTMLDivElement | null>(null);
   const measured = useRef(false);
   const selectTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
-    undefined
+    undefined,
   );
 
   const pillX = useMotionValue(0);
@@ -100,7 +88,6 @@ export function MagneticTabs({
       const idx = items.findIndex((t) => t.value === value);
       const btn = tabRefs.current[idx];
       if (!btn) return;
-      // offsetLeft/offsetWidth nao quebra com transform no ancestral
       const x = btn.offsetLeft;
       const w = btn.offsetWidth;
       if (!measured.current) {
@@ -138,83 +125,49 @@ export function MagneticTabs({
   const activeItem = items.find((t) => t.value === active);
 
   return (
-    <div className={`mt${className ? ` ${className}` : ""}`}>
-      <style dangerouslySetInnerHTML={{ __html: CSS }} />
-
-      {/* Tab bar */}
-      <div
-        ref={barRef}
-        style={{
-          position: "relative",
-          display: "inline-flex",
-          alignItems: "center",
-          padding: 5,
-          background: "var(--mt-bg)",
-          border: "1px solid var(--mt-border)",
-          boxShadow: "var(--mt-shadow)",
-          borderRadius: 10,
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
-        }}
-        onMouseLeave={() => setHovered(null)}
-      >
-        {/* Pill indicator */}
-        <motion.div
-          style={{
-            position: "absolute",
-            top: 5,
-            left: 0,
-            height: "calc(100% - 10px)",
-            x: springX,
-            width: springW,
-            background: "var(--mt-pill)",
-            borderRadius: 6,
-            pointerEvents: "none",
-            zIndex: 0,
-          }}
-        />
-
-        {/* Tab buttons */}
-        {items.map((item, i) => (
-          <button
-            key={item.value}
-            ref={(el) => {
-              tabRefs.current[i] = el;
-            }}
-            onClick={() => go(item.value)}
-            onMouseEnter={() => {
-              setSelectMode(false);
-              clearTimeout(selectTimer.current);
-              setHovered(item.value);
-            }}
+    <div className={cn(className)}>
+      <LiquidGlass className="inline-flex rounded-[10px] bg-white/[0.06]">
+        <div
+          ref={barRef}
+          className="relative inline-flex items-center p-[5px]"
+          onMouseLeave={() => setHovered(null)}
+        >
+          <motion.div
+            className="pointer-events-none absolute top-[5px] z-0 h-[calc(100%-10px)] rounded-md bg-white/[0.08]"
             style={{
-              position: "relative",
-              zIndex: 1,
-              border: "none",
-              background: "none",
-              padding: "11px 20px",
-              fontSize: 14,
-              fontWeight: 500,
-              fontFamily: "inherit",
-              color:
-                active === item.value
-                  ? "var(--mt-text-active)"
-                  : "var(--mt-text)",
-              cursor: "pointer",
-              whiteSpace: "nowrap",
-              lineHeight: 1,
-              transition: "color .15s ease",
-              borderRadius: 6,
+              left: 0,
+              x: springX,
+              width: springW,
             }}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
+          />
 
-      {/* Content panel */}
+          {items.map((item, i) => (
+            <button
+              key={item.value}
+              ref={(el) => {
+                tabRefs.current[i] = el;
+              }}
+              type="button"
+              onClick={() => go(item.value)}
+              onMouseEnter={() => {
+                setSelectMode(false);
+                clearTimeout(selectTimer.current);
+                setHovered(item.value);
+              }}
+              className={cn(
+                "relative z-[1] cursor-pointer whitespace-nowrap rounded-md border-none bg-transparent px-5 py-[11px] font-medium leading-none transition-colors duration-150",
+                "text-sm",
+                active === item.value ? "text-white/90" : "text-white/45",
+              )}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+      </LiquidGlass>
+
       {activeItem?.content != null && (
-        <div style={{ position: "relative", marginTop: 16, minHeight: 60 }}>
+        <div className="relative mt-4 min-h-[60px]">
           <AnimatePresence mode="wait">
             <motion.div
               key={active}
@@ -222,15 +175,7 @@ export function MagneticTabs({
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -6 }}
               transition={CONTENT_SPRING}
-              style={{
-                padding: 20,
-                background: "var(--mt-content-bg)",
-                border: "1px solid var(--mt-content-border)",
-                borderRadius: 12,
-                color: "var(--mt-text-active)",
-                fontSize: 14,
-                lineHeight: 1.6,
-              }}
+              className="rounded-xl border border-white/[0.06] bg-white/[0.03] p-5 text-sm leading-relaxed text-white/90"
             >
               {activeItem.content}
             </motion.div>

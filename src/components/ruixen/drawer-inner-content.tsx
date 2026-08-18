@@ -4,11 +4,6 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence, useDragControls } from "motion/react";
 
-/**
- * Drawer Inner Content — gesture-driven sheet.
- * Desktop: from the right. Mobile: from the bottom.
- */
-
 export interface DrawerItem {
   icon: ReactNode;
   label: string;
@@ -27,6 +22,7 @@ export interface DrawerInnerContentProps {
   sections?: DrawerSection[];
   children?: ReactNode;
   header?: ReactNode;
+  background?: ReactNode;
   sound?: boolean;
   onExitComplete?: () => void;
 }
@@ -100,6 +96,7 @@ export function DrawerInnerContent({
   sections = [],
   children,
   header,
+  background,
   sound = true,
   onExitComplete,
 }: DrawerInnerContentProps) {
@@ -146,7 +143,10 @@ export function DrawerInnerContent({
       style={{
         position: "fixed",
         zIndex: 281,
-        background: "var(--d-bg)",
+        overflow: "hidden",
+        background: background ? "rgba(21, 22, 24, 0.45)" : "var(--d-bg)",
+        backdropFilter: background ? "blur(28px)" : undefined,
+        WebkitBackdropFilter: background ? "blur(28px)" : undefined,
         ...(fromRight
           ? {
               top: 0,
@@ -169,11 +169,14 @@ export function DrawerInnerContent({
             }),
       }}
     >
+      {background}
       <div
         onPointerDown={(event) => {
           if (!fromRight) controls.start(event);
         }}
         style={{
+          position: "relative",
+          zIndex: 1,
           flexShrink: 0,
           cursor: fromRight ? undefined : "grab",
           touchAction: fromRight ? undefined : "none",
@@ -202,6 +205,8 @@ export function DrawerInnerContent({
 
       <div
         style={{
+          position: "relative",
+          zIndex: 1,
           overflowY: "auto",
           overflowX: "hidden",
           flex: 1,

@@ -8,11 +8,10 @@ import {
   CalendarDays,
   ChevronRight,
   Copy,
-  ExternalLink,
   MapPin,
   Users,
-  X,
 } from "lucide-react";
+import { HubAtmosphere } from "@/components/community-hub/hub-atmosphere";
 import { DrawerInnerContent } from "@/components/ruixen/drawer-inner-content";
 import { RichDescriptionView } from "@/components/rich-description/rich-description";
 import { isEmptyRichText } from "@/lib/sanitize-html";
@@ -139,8 +138,15 @@ export function CommunityPreviewDrawer({
       open={open}
       onOpenChange={onOpenChange}
       onExitComplete={onExitComplete}
+      background={
+        <HubAtmosphere
+          contained
+          coverUrl={community.cover_url}
+          seed={community.id}
+        />
+      }
       header={
-        <div className="flex items-center justify-between gap-2 px-4 pb-2 pt-1">
+        <div className="flex items-center px-4 pb-2 pt-1">
           <button
             type="button"
             onClick={() => onOpenChange(false)}
@@ -150,41 +156,15 @@ export function CommunityPreviewDrawer({
           >
             <ChevronRight className="h-4 w-4 rotate-180" strokeWidth={1.75} />
           </button>
-          <div className="flex items-center gap-1">
-            <button
-              type="button"
-              onClick={() => void copyLink()}
-              onPointerDown={(event) => event.stopPropagation()}
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-white/55 transition hover:bg-white/5 hover:text-white"
-            >
-              <Copy className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Copiar link
-            </button>
-            <button
-              type="button"
-              onClick={goToPage}
-              onPointerDown={(event) => event.stopPropagation()}
-              className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs text-white/55 transition hover:bg-white/5 hover:text-white"
-            >
-              <ExternalLink className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Página
-            </button>
-            <button
-              type="button"
-              onClick={() => onOpenChange(false)}
-              onPointerDown={(event) => event.stopPropagation()}
-              className="rounded-md p-1.5 text-white/45 transition hover:bg-white/5 hover:text-white"
-              aria-label="Fechar"
-            >
-              <X className="h-4 w-4" strokeWidth={1.75} />
-            </button>
-          </div>
         </div>
       }
     >
       <div className="flex min-w-0 flex-col gap-5 px-5 pt-2">
-        <div
-          className={`aspect-square w-full overflow-hidden rounded-2xl ${
+        <button
+          type="button"
+          onClick={goToPage}
+          aria-label="Abrir comunidade"
+          className={`aspect-square w-full overflow-hidden rounded-2xl text-left ${
             community.cover_url
               ? "bg-black/40"
               : `ff-cover-${coverIndex(community.id)}`
@@ -202,12 +182,22 @@ export function CommunityPreviewDrawer({
               {(community.name || "?").slice(0, 1).toUpperCase()}
             </div>
           )}
-        </div>
+        </button>
 
         <div>
-          <h2 className="text-[22px] font-semibold leading-snug tracking-tight text-white">
-            {community.name}
-          </h2>
+          <div className="flex items-start justify-between gap-3">
+            <h2 className="min-w-0 text-[22px] font-semibold leading-snug tracking-tight text-white">
+              {community.name}
+            </h2>
+            <button
+              type="button"
+              onClick={() => void copyLink()}
+              className="mt-0.5 shrink-0 rounded-md p-1.5 text-white/35 transition hover:bg-white/5 hover:text-white"
+              aria-label="Copiar link"
+            >
+              <Copy className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+          </div>
           <p className="mt-1.5 flex items-center gap-1 text-sm text-white/45">
             {labelKind(community.kind)}
             {place ? (

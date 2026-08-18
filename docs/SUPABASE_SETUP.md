@@ -26,6 +26,8 @@ Os arquivos estão no clone, em `supabase/migrations/`. Abra cada um, copie o SQ
 | 7 | `007_community_writers.sql` | Quem publica aviso/material |
 | 8 | `008_join_by_code.sql` | Entrar por código (privada fora do Descobrir) |
 | 9 | `009_community_public_id.sql` | `public_id` curto na URL |
+| 10 | `010_profiles_read_co_members.sql` | Ler nome/foto de quem compartilha comunidade |
+| 11 | `011_avatar_sync_and_storage_prune.sql` | Preenche `avatar_url` + limpa avatars órfãos no bucket |
 
 CLI, se você usa:
 

@@ -105,7 +105,11 @@ export function EditCommunityDialog({
     try {
       let capaUrl: string | undefined;
       if (coverFile) {
-        capaUrl = await uploadComunidadeCover(userId, coverFile);
+        capaUrl = await uploadComunidadeCover(
+          userId,
+          coverFile,
+          community.cover_url,
+        );
       }
 
       const parsedTags = tags
@@ -153,7 +157,7 @@ export function EditCommunityDialog({
         >
           <DialogTitle className="sr-only">Editar</DialogTitle>
 
-          <div className="mx-auto flex min-h-full w-full max-w-[var(--ff-max-width)] flex-col px-4 pb-16 pt-6 sm:px-6">
+          <div className="ff-shell-wide mx-auto flex min-h-full w-full flex-col pb-16 pt-6">
             <div className="mb-10 flex items-center justify-between gap-3">
               <p className="text-sm text-white/45">Modo edição</p>
               <div className="flex items-center gap-2">

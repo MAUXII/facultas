@@ -17,7 +17,6 @@ import {
   communityAction,
   needsInstitution,
 } from "@/lib/community";
-import { AvatarStack } from "@/components/avatar-stack/avatar-stack";
 import { RichDescriptionView } from "@/components/rich-description/rich-description";
 import { isEmptyRichText } from "@/lib/sanitize-html";
 import { getInstituicao } from "@/lib/institutions";
@@ -27,10 +26,18 @@ import { createClient } from "@/lib/supabase/client";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import { EditCommunityDialog } from "@/components/edit-community-dialog/edit-community-dialog";
 import { HubAtmosphere } from "@/components/community-hub/hub-atmosphere";
+import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
 import { coverIndex } from "@/lib/cover-tint";
 import { Pencil, ChevronRight, Eye } from "lucide-react";
 import { accessFor, roleFrom } from "@/lib/access";
 import { settingsFrom } from "@/lib/hub";
+
+function memberAvatarImage(name: string, avatarUrl: string | null) {
+  if (avatarUrl) return avatarUrl;
+  const letter = (name.trim().charAt(0) || "?").toUpperCase();
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="112" height="112"><rect width="112" height="112" fill="#2a2a2c"/><text x="50%" y="54%" dominant-baseline="middle" text-anchor="middle" fill="rgba(255,255,255,0.75)" font-family="system-ui,sans-serif" font-size="48" font-weight="600">${letter}</text></svg>`;
+  return `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+}
 
 export default function ComunidadePage() {
   const params = useParams();
@@ -161,6 +168,16 @@ export default function ComunidadePage() {
     ? getInstituicao(comunidade.institution_id)
     : undefined;
   const activeMembers = members.filter((m) => m.status === "active");
+  const memberTooltips = activeMembers.map((member, index) => ({
+    id: index + 1,
+    name: member.name,
+    designation: member.username
+      ? `@${member.username}`
+      : member.role === "admin"
+        ? "Admin"
+        : "Membro",
+    image: memberAvatarImage(member.name, member.avatar_url),
+  }));
   const showInstituicao =
     needsInstitution(comunidade.kind) && !!instituicao?.nome;
   const role = user
@@ -226,6 +243,12 @@ export default function ComunidadePage() {
               ) : null}
             </div>
 
+            {memberTooltips.length > 0 ? (
+              <div className="flex flex-row items-center py-1">
+                <AnimatedTooltip items={memberTooltips} />
+              </div>
+            ) : null}
+
             {action ? (
               <button
                 type="button"
@@ -236,8 +259,6 @@ export default function ComunidadePage() {
                 {joining ? "Aguarde…" : action.label}
               </button>
             ) : null}
-
-            <AvatarStack people={activeMembers} />
 
             {isMember && comunidade.access_code ? (
               <button

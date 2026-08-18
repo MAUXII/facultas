@@ -1,6 +1,5 @@
 import { createClient } from "@/lib/supabase/client";
-import type { Profile, QRCodePessoalData } from "@/types";
-import { gerarQRPessoal, gerarQRCodeData } from "./qr-code";
+import type { Profile } from "@/types";
 
 export async function buscarUsuario(userId: string): Promise<Profile | null> {
   const supabase = createClient();
@@ -24,25 +23,71 @@ export async function garantirUsuario(params: {
   foto_url?: string | null;
 }): Promise<Profile | null> {
   const supabase = createClient();
+  const payload: Record<string, unknown> = {
+    id: params.id,
+    email: params.email,
+    name: params.nome || "User",
+    last_login_at: new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+  if (params.foto_url) payload.avatar_url = params.foto_url;
+
   const { data, error } = await supabase
     .from("profiles")
-    .upsert(
-      {
-        id: params.id,
-        email: params.email,
-        name: params.nome || "User",
-        avatar_url: params.foto_url ?? null,
-        last_login_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "id" }
-    )
+    .upsert(payload, { onConflict: "id" })
     .select("*")
     .single();
 
   if (error) {
     console.error(error);
     return buscarUsuario(params.id);
+  }
+  return data as Profile;
+}
+
+export async function syncAvatarUrl(
+  userId: string,
+  metaAvatar?: string | null,
+): Promise<Profile | null> {
+  const supabase = createClient();
+  const current = await buscarUsuario(userId);
+  if (!current) return null;
+  if (current.avatar_url) return current;
+
+  let next = metaAvatar?.trim() || null;
+
+  if (!next) {
+    const { data: files } = await supabase.storage
+      .from("covers")
+      .list(userId, { limit: 100 });
+    const latestAvatar = (files || [])
+      .filter((file) => file.name.startsWith("avatar"))
+      .sort((a, b) => {
+        const aTime = a.updated_at || a.created_at || "";
+        const bTime = b.updated_at || b.created_at || "";
+        return bTime.localeCompare(aTime);
+      })[0];
+    if (latestAvatar) {
+      const path = `${userId}/${latestAvatar.name}`;
+      next = supabase.storage.from("covers").getPublicUrl(path).data.publicUrl;
+    }
+  }
+
+  if (!next) return current;
+
+  const { data, error } = await supabase
+    .from("profiles")
+    .update({
+      avatar_url: next,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", userId)
+    .select("*")
+    .single();
+
+  if (error) {
+    console.error(error);
+    return current;
   }
   return data as Profile;
 }
@@ -64,7 +109,7 @@ export async function salvarInstituicaoUsuario(
     institutionId: string;
     campusId?: string;
     curso?: string;
-  }
+  },
 ): Promise<void> {
   const supabase = createClient();
   const { error } = await supabase
@@ -78,18 +123,4 @@ export async function salvarInstituicaoUsuario(
     .eq("id", userId);
 
   if (error) throw error;
-}
-
-export async function gerarQRPessoalParaUsuario(
-  userId: string
-): Promise<QRCodePessoalData> {
-  const usuario = await buscarUsuario(userId);
-  if (!usuario) throw new Error("User not found");
-
-  const token = gerarQRPessoal(userId, usuario.qr_secret);
-  const qrCodeUrl = gerarQRCodeData(token);
-  const expiresAt = new Date();
-  expiresAt.setHours(expiresAt.getHours() + 1);
-
-  return { token, qrCodeUrl, expiresAt };
 }

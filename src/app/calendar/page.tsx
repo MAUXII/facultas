@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { CalendarDays } from "lucide-react";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { MagneticTabs } from "@/components/ruixen/magnetic-tabs";
+import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
 import { useAuth } from "@/hooks/useAuth";
 import { routes } from "@/lib/routes";
 import { useTranslations } from "next-intl";
@@ -49,11 +50,13 @@ export default function CalendarioPage() {
         </div>
 
         <div className="flex flex-col items-center justify-center py-24 text-center">
-          <div className="relative mb-6 flex h-28 w-28 items-center justify-center rounded-3xl bg-[var(--ff-surface)]">
-            <CalendarDays
-              className="h-12 w-12 text-white/25"
-              strokeWidth={1.25}
-            />
+          <div className="relative mb-6">
+            <LiquidGlass className="flex h-28 w-28 items-center justify-center rounded-3xl bg-white/[0.06]">
+              <CalendarDays
+                className="h-12 w-12 text-white/25"
+                strokeWidth={1.25}
+              />
+            </LiquidGlass>
             <span className="absolute -right-1 -top-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/10 text-xs font-semibold text-white/70">
               0
             </span>

@@ -13,9 +13,11 @@ import {
   Plus,
   KeyRound,
   Settings,
+  QrCode,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
 import { ProfileDialog } from "@/components/profile-dialog/profile-dialog";
+import { QrCodeDialog } from "@/components/qr-code-dialog/qr-code-dialog";
 import { JoinByCodeDialog } from "@/components/join-by-code/join-by-code";
 import { SoundLink } from "@/components/sound-link/sound-link";
 import { APP_MARK, APP_NAME } from "@/lib/brand";
@@ -30,6 +32,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useCommunities } from "@/app/communities-context";
+import { cn } from "@/lib/utils";
 
 const ICON_STROKE = 1.5;
 
@@ -37,19 +40,39 @@ function AccountMenu({
   onJoin,
   onSettings,
   onProfile,
+  onQr,
   joinLabel,
   settingsLabel,
   profileLabel,
+  qrLabel,
 }: {
   onJoin: () => void;
   onSettings: () => void;
   onProfile: () => void;
+  onQr: () => void;
   joinLabel: string;
   settingsLabel: string;
   profileLabel: string;
+  qrLabel: string;
 }) {
   return (
     <>
+      <button
+        type="button"
+        onClick={onProfile}
+        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-white transition hover:bg-white/5"
+      >
+        <User className="h-4 w-4 shrink-0 text-white/55" strokeWidth={1.5} />
+        {profileLabel}
+      </button>
+      <button
+        type="button"
+        onClick={onQr}
+        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-white transition hover:bg-white/5"
+      >
+        <QrCode className="h-4 w-4 shrink-0 text-white/55" strokeWidth={1.5} />
+        {qrLabel}
+      </button>
       <button
         type="button"
         onClick={onJoin}
@@ -65,14 +88,6 @@ function AccountMenu({
       >
         <Settings className="h-4 w-4 shrink-0 text-white/55" strokeWidth={1.5} />
         {settingsLabel}
-      </button>
-      <button
-        type="button"
-        onClick={onProfile}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-white transition hover:bg-white/5"
-      >
-        <User className="h-4 w-4 shrink-0 text-white/55" strokeWidth={1.5} />
-        {profileLabel}
       </button>
     </>
   );
@@ -96,13 +111,12 @@ export function TopNav() {
   const tp = useTranslations("profile");
   const { fetchCommunities } = useCommunities();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
-  const [profileVariant, setProfileVariant] = useState<"profile" | "settings">(
-    "profile",
-  );
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [qrOpen, setQrOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
   const [timeLabel, setTimeLabel] = useState("");
+  const [scrolled, setScrolled] = useState(false);
 
   const navLinks = [
     { href: routes.communities, label: t("communities"), icon: DoorOpen },
@@ -134,6 +148,13 @@ export function TopNav() {
 
   useEffect(() => {
     setMobileOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    const onScroll = () => setScrolled(window.scrollY > 8);
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
   }, [pathname]);
 
   const wideNav =
@@ -203,22 +224,38 @@ export function TopNav() {
     playRuixenClick("soft");
     setAccountOpen(false);
     setMobileOpen(false);
-    setProfileVariant("settings");
-    setProfileOpen(true);
+    setSettingsOpen(true);
   };
 
   const openProfile = () => {
     playRuixenClick("soft");
     setAccountOpen(false);
     setMobileOpen(false);
-    setProfileVariant("profile");
-    setProfileOpen(true);
+    router.push(routes.profile);
+  };
+
+  const openQr = () => {
+    playRuixenClick("soft");
+    setAccountOpen(false);
+    setMobileOpen(false);
+    setQrOpen(true);
   };
 
   return (
     <>
-      <header className="fixed inset-x-0 top-0 z-50 bg-[var(--ff-bg)]/80 backdrop-blur-md">
-        <nav className="ff-nav">
+      <header
+        className={cn(
+          "fixed inset-x-0 top-0 z-50 border-b transition-[border-color,background-color,backdrop-filter] duration-200",
+          scrolled
+            ? "border-white/10 bg-[var(--ff-bg)]/55 backdrop-blur-md"
+            : "border-transparent bg-transparent",
+        )}
+      >
+        <div
+          aria-hidden
+          className="ff-nav-glow pointer-events-none absolute inset-x-0 top-0 h-16 bg-gradient-to-b from-blue-400/[0.18] to-transparent transition-opacity duration-300 [[data-ff-atmosphere=tint]_&]:opacity-0"
+        />
+        <nav className="relative ff-nav">
           <SoundLink
             href={routes.communities}
             sound="soft"
@@ -297,9 +334,11 @@ export function TopNav() {
                     onJoin={openJoin}
                     onSettings={openSettings}
                     onProfile={openProfile}
+                    onQr={openQr}
                     joinLabel={t("joinCode")}
                     settingsLabel={t("settings")}
                     profileLabel={t("viewProfile")}
+                    qrLabel={t("myQr")}
                   />
                 </PopoverContent>
               </Popover>
@@ -352,9 +391,11 @@ export function TopNav() {
                 onJoin={openJoin}
                 onSettings={openSettings}
                 onProfile={openProfile}
+                onQr={openQr}
                 joinLabel={t("joinCode")}
                 settingsLabel={t("settings")}
                 profileLabel={t("viewProfile")}
+                qrLabel={t("myQr")}
               />
             </div>
             <button
@@ -368,11 +409,8 @@ export function TopNav() {
         </div>
       )}
 
-      <ProfileDialog
-        open={profileOpen}
-        onOpenChange={setProfileOpen}
-        variant={profileVariant}
-      />
+      <ProfileDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+      <QrCodeDialog open={qrOpen} onOpenChange={setQrOpen} />
       <JoinByCodeDialog
         open={joinOpen}
         onOpenChange={setJoinOpen}
