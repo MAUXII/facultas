@@ -1,12 +1,13 @@
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import type { Usuario } from "@/types";
 import { useAuth } from "@/hooks/useAuth";
 import {
   buscarUsuario,
   garantirUsuario,
   atualizarUltimoLogin,
+  syncAvatarUrl,
 } from "@/lib/user-service";
 
 type UseUsuarioReturn = {
@@ -21,6 +22,8 @@ export function useUsuario(): UseUsuarioReturn {
   const [usuario, setUsuario] = useState<Usuario | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
+  const usuarioRef = useRef<Usuario | null>(null);
+  usuarioRef.current = usuario;
 
   const carregarUsuario = useCallback(async () => {
     if (!user) {
@@ -35,10 +38,15 @@ export function useUsuario(): UseUsuarioReturn {
         : undefined;
 
     try {
-      setLoading(true);
+      if (!usuarioRef.current) setLoading(true);
       setError(null);
 
       let data = await buscarUsuario(user.id);
+      const metaAvatar =
+        user.user_metadata?.avatar_url ||
+        user.user_metadata?.picture ||
+        null;
+
       if (!data) {
         data = await garantirUsuario({
           id: user.id,
@@ -47,10 +55,13 @@ export function useUsuario(): UseUsuarioReturn {
             user.user_metadata?.full_name ||
             user.user_metadata?.name ||
             "Usuario",
-          foto_url: user.user_metadata?.avatar_url || null,
+          foto_url: metaAvatar,
         });
       } else {
         void atualizarUltimoLogin(user.id);
+        if (!data.avatar_url) {
+          data = (await syncAvatarUrl(user.id, metaAvatar)) || data;
+        }
       }
 
       setUsuario(data);

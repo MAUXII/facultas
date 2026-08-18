@@ -91,7 +91,11 @@ export function CommunityCard({ community }: { community: Community }) {
     if (!file || !user) return;
     setUploadingCover(true);
     try {
-      const url = await uploadComunidadeCover(user.id, file);
+      const url = await uploadComunidadeCover(
+        user.id,
+        file,
+        localCover || community.cover_url,
+      );
       await write.update(community.id, { capaUrl: url });
       setLocalCover(url);
       toast({ title: "Capa atualizada" });

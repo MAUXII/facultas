@@ -44,24 +44,40 @@ type ProfileEmbed = {
   avatar_url?: string | null;
 };
 
-function asProfile(value: unknown): ProfileEmbed {
-  if (Array.isArray(value)) return (value[0] || {}) as ProfileEmbed;
-  return (value || {}) as ProfileEmbed;
-}
-
 export async function listarMembros(communityId: string): Promise<MemberRow[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("community_members")
-    .select("user_id, role, status, joined_at, profiles!user_id(name, username, avatar_url)")
+    .select("user_id, role, status, joined_at")
     .eq("community_id", communityId)
     .neq("status", "removed")
     .order("joined_at", { ascending: true });
 
   if (error) throw error;
 
-  return (data || []).map((row) => {
-    const profile = asProfile(row.profiles);
+  const rows = data || [];
+  const ids = rows.map((row) => row.user_id);
+  const profileById = new Map<string, ProfileEmbed>();
+
+  if (ids.length > 0) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, name, username, avatar_url")
+      .in("id", ids);
+
+    if (profilesError) throw profilesError;
+
+    for (const profile of profiles || []) {
+      profileById.set(profile.id, {
+        name: profile.name,
+        username: profile.username,
+        avatar_url: profile.avatar_url,
+      });
+    }
+  }
+
+  return rows.map((row) => {
+    const profile = profileById.get(row.user_id) || {};
     return {
       user_id: row.user_id,
       role: row.role,
@@ -78,14 +94,34 @@ export async function listarPosts(communityId: string): Promise<PostRow[]> {
   const supabase = createClient();
   const { data, error } = await supabase
     .from("community_posts")
-    .select("id, community_id, author_id, body, created_at, profiles!author_id(name, avatar_url)")
+    .select("id, community_id, author_id, body, created_at")
     .eq("community_id", communityId)
     .order("created_at", { ascending: false });
 
   if (error) throw error;
 
-  return (data || []).map((row) => {
-    const profile = asProfile(row.profiles);
+  const rows = data || [];
+  const authorIds = [...new Set(rows.map((row) => row.author_id))];
+  const profileById = new Map<string, ProfileEmbed>();
+
+  if (authorIds.length > 0) {
+    const { data: profiles, error: profilesError } = await supabase
+      .from("profiles")
+      .select("id, name, avatar_url")
+      .in("id", authorIds);
+
+    if (profilesError) throw profilesError;
+
+    for (const profile of profiles || []) {
+      profileById.set(profile.id, {
+        name: profile.name,
+        avatar_url: profile.avatar_url,
+      });
+    }
+  }
+
+  return rows.map((row) => {
+    const profile = profileById.get(row.author_id) || {};
     return {
       id: row.id,
       community_id: row.community_id,
