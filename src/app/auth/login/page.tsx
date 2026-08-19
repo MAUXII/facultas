@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -18,6 +18,7 @@ import { useRouter } from "next/navigation";
 import { routes } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/client";
 import { APP_MARK, APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { safeNextPath, signupHref } from "@/lib/login-next";
 
 const FormSchema = z.object({
   email: z.string().min(1, "Email obrigatorio").email("Email invalido"),
@@ -31,6 +32,11 @@ export default function Login() {
   const router = useRouter();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
+  const [next, setNext] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNext(safeNextPath(new URLSearchParams(window.location.search).get("next")));
+  }, []);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -56,14 +62,14 @@ export default function Login() {
     }
 
     toast({ title: `Bem-vindo ao ${APP_NAME}` });
-    router.push("/");
+    router.push(next || routes.discover);
     router.refresh();
   };
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[var(--ff-bg)] text-white">
       <Link
-        href={routes.home}
+        href={routes.discover}
         className="absolute left-5 top-5 z-10 text-sm font-medium tracking-tight text-white/70 transition hover:text-white md:left-8 md:top-8"
       >
         {APP_MARK}
@@ -135,7 +141,7 @@ export default function Login() {
               <p className="text-center text-sm text-white/35">
                 Nao tem conta?{" "}
                 <Link
-                  href={routes.signup}
+                  href={signupHref(next)}
                   className="font-medium text-white/70 transition hover:text-white"
                 >
                   Criar conta

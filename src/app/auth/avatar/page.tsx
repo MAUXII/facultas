@@ -10,6 +10,7 @@ import { createClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/cover-upload";
 import { APP_MARK } from "@/lib/brand";
 import { routes } from "@/lib/routes";
+import { safeNextPath } from "@/lib/login-next";
 import { Camera } from "lucide-react";
 
 export default function AvatarStep() {
@@ -66,7 +67,10 @@ export default function AvatarStep() {
   };
 
   const finish = () => {
-    router.replace(routes.onboarding);
+    const next = safeNextPath(
+      new URLSearchParams(window.location.search).get("next"),
+    );
+    router.replace(next || routes.onboarding);
   };
 
   const onSkip = () => {

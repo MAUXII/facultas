@@ -1,24 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useState } from "react";
 import { CalendarDays } from "lucide-react";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { MagneticTabs } from "@/components/ruixen/magnetic-tabs";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
-import { useAuth } from "@/hooks/useAuth";
-import { routes } from "@/lib/routes";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useTranslations } from "next-intl";
 
 export default function CalendarioPage() {
-  const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading } = useRequireAuth();
   const t = useTranslations("calendar");
   const [tab, setTab] = useState<"proximos" | "passado">("proximos");
-
-  useEffect(() => {
-    if (!user && !loading) router.push(routes.login);
-  }, [user, loading, router]);
 
   if (loading || !user) {
     return (

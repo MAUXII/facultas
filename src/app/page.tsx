@@ -14,7 +14,7 @@ export default function Home() {
   useEffect(() => {
     if (loadingAuth || loadingUser) return;
     if (!user) {
-      router.replace(routes.login);
+      router.replace(routes.discover);
       return;
     }
     if (!usuario?.institution_id) {

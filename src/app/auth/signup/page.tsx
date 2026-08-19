@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -19,6 +19,7 @@ import { createClient } from "@/lib/supabase/client";
 import { randomUsername } from "@/lib/username";
 import { APP_MARK, APP_TAGLINE } from "@/lib/brand";
 import { routes } from "@/lib/routes";
+import { loginHref, safeNextPath, withNext } from "@/lib/login-next";
 
 const FormSchema = z.object({
   name: z
@@ -52,6 +53,11 @@ export default function Cadastro() {
   const router = useRouter();
   const { toast } = useToast();
   const [busy, setBusy] = useState(false);
+  const [next, setNext] = useState<string | null>(null);
+
+  useEffect(() => {
+    setNext(safeNextPath(new URLSearchParams(window.location.search).get("next")));
+  }, []);
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -85,7 +91,7 @@ export default function Cadastro() {
           title: "Conta criada",
           description: "Confirme o e-mail se o Supabase pedir.",
         });
-        router.push(routes.login);
+        router.push(loginHref(next));
         return;
       }
 
@@ -98,7 +104,7 @@ export default function Cadastro() {
         })
         .eq("id", userId);
 
-      router.push(routes.avatar);
+      router.push(withNext(routes.avatar, next));
       router.refresh();
     } catch (err: unknown) {
       const message =
@@ -116,7 +122,7 @@ export default function Cadastro() {
   return (
     <main className="relative min-h-screen overflow-hidden bg-[var(--ff-bg)] text-white">
       <Link
-        href={routes.home}
+        href={routes.discover}
         className="absolute left-5 top-5 z-10 text-sm font-medium tracking-tight text-white/70 transition hover:text-white md:left-8 md:top-8"
       >
         {APP_MARK}
@@ -206,7 +212,7 @@ export default function Cadastro() {
               <p className="text-center text-sm text-white/35">
                 Ja tem conta?{" "}
                 <Link
-                  href={routes.login}
+                  href={loginHref(next)}
                   className="font-medium text-white/70 transition hover:text-white"
                 >
                   Entrar

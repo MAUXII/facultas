@@ -1,10 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { useAuth } from "@/hooks/useAuth";
-import { routes } from "@/lib/routes";
 import { listarComunidadesPublicas } from "@/lib/comunidade-service";
 import { COMMUNITY_KINDS, type CommunityKind } from "@/lib/community";
 import type { Community } from "@/types";
@@ -15,23 +13,18 @@ import { cn } from "@/lib/utils";
 type Filter = "all" | CommunityKind;
 
 export default function DiscoverPage() {
-  const router = useRouter();
-  const { user, loading } = useAuth();
+  const { loading } = useAuth();
   const [publicas, setPublicas] = useState<Community[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [preview, setPreview] = useState<Community | null>(null);
   const [previewOpen, setPreviewOpen] = useState(false);
 
   useEffect(() => {
-    if (!user && !loading) router.push(routes.login);
-  }, [user, loading, router]);
-
-  useEffect(() => {
-    if (!user) return;
+    if (loading) return;
     void listarComunidadesPublicas()
       .then(setPublicas)
       .catch(() => setPublicas([]));
-  }, [user]);
+  }, [loading]);
 
   const shown = useMemo(() => {
     if (filter === "all") return publicas;
@@ -45,8 +38,6 @@ export default function DiscoverPage() {
       </div>
     );
   }
-
-  if (!user) return null;
 
   const openPreview = (community: Community) => {
     setPreview(community);

@@ -19,6 +19,7 @@ import { coverIndex } from "@/lib/cover-tint";
 import { communityAction, labelKind } from "@/lib/community";
 import { getInstituicao } from "@/lib/institutions";
 import { routes } from "@/lib/routes";
+import { loginHref } from "@/lib/login-next";
 import { entrarNaComunidade } from "@/lib/comunidade-service";
 import { createClient } from "@/lib/supabase/client";
 import { roleFrom } from "@/lib/access";
@@ -101,7 +102,12 @@ export function CommunityPreviewDrawer({
   };
 
   const join = async () => {
-    if (!user) return;
+    if (!user) {
+      playRuixenClick("action");
+      onOpenChange(false);
+      router.push(loginHref(href));
+      return;
+    }
     setJoining(true);
     playRuixenClick("action");
     try {
@@ -273,7 +279,7 @@ export function CommunityPreviewDrawer({
           ) : (
             <button
               type="button"
-              disabled={joining || !action}
+              disabled={joining}
               onClick={() => void join()}
               className="mt-4 w-full rounded-xl bg-white py-3 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-40"
             >
