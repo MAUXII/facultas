@@ -22,6 +22,7 @@ import { JoinByCodeDialog } from "@/components/join-by-code/join-by-code";
 import { SoundLink } from "@/components/sound-link/sound-link";
 import { APP_MARK, APP_NAME } from "@/lib/brand";
 import { routes } from "@/lib/routes";
+import { loginHref } from "@/lib/login-next";
 import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { playRuixenClick } from "@/lib/ruixen-click";
@@ -186,9 +187,14 @@ export function TopNav() {
     };
   }, [wideNav]);
 
-  if (isAuthPath || loading || !user) {
+  if (isAuthPath || loading) {
     return null;
   }
+
+  const hrefFor = (href: string) => {
+    if (user || href === routes.discover) return href;
+    return loginHref(href);
+  };
 
   const handleLogout = async () => {
     try {
@@ -198,7 +204,7 @@ export function TopNav() {
         title: tp("loggedOut"),
         description: tp("loggedOutHint"),
       });
-      router.push(routes.login);
+      router.push(routes.discover);
       router.refresh();
     } catch {
       toast({
@@ -211,7 +217,7 @@ export function TopNav() {
 
   const iconClass = "h-4 w-4";
   const avatar =
-    user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+    user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
 
   const openJoin = () => {
     playRuixenClick("soft");
@@ -257,7 +263,7 @@ export function TopNav() {
         />
         <nav className="relative ff-nav">
           <SoundLink
-            href={routes.communities}
+            href={user ? routes.communities : routes.discover}
             sound="soft"
             aria-label={`${APP_NAME} Home`}
             className="flex shrink-0 items-center text-[15px] font-medium lowercase tracking-tight text-white"
@@ -268,11 +274,12 @@ export function TopNav() {
           <div className="ff-center-and-right">
             <div className="ff-nav-links">
               {navLinks.map(({ href, label, icon: Icon }) => {
+                const to = hrefFor(href);
                 const active = isActive(pathname, href);
                 return (
                   <SoundLink
                     key={href}
-                    href={href}
+                    href={to}
                     sound="nav"
                     data-active={active}
                     className="ff-nav-link"
@@ -289,59 +296,71 @@ export function TopNav() {
                 {timeLabel}
               </span>
               <SoundLink
-                href={routes.create}
+                href={hrefFor(routes.create)}
                 sound="action"
                 className="hidden px-2 py-1 text-sm font-medium text-white/80 transition hover:text-white sm:inline"
               >
                 {t("createGroup")}
               </SoundLink>
-              <button
-                type="button"
-                onClick={() => playRuixenClick("soft")}
-                className="hidden rounded-md p-1.5 text-white/45 transition hover:bg-white/5 hover:text-white md:inline-flex"
-                aria-label={t("notifications")}
-              >
-                <Bell className={iconClass} strokeWidth={ICON_STROKE} />
-              </button>
-              <Popover open={accountOpen} onOpenChange={setAccountOpen}>
-                <PopoverTrigger asChild>
+              {user ? (
+                <>
                   <button
                     type="button"
                     onClick={() => playRuixenClick("soft")}
-                    className="hidden overflow-hidden rounded-full md:inline-flex"
-                    aria-label={t("profile")}
+                    className="hidden rounded-md p-1.5 text-white/45 transition hover:bg-white/5 hover:text-white md:inline-flex"
+                    aria-label={t("notifications")}
                   >
-                    {avatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={avatar}
-                        alt=""
-                        className="h-6 w-6 rounded-full object-cover"
-                      />
-                    ) : (
-                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                        <User className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
-                      </span>
-                    )}
+                    <Bell className={iconClass} strokeWidth={ICON_STROKE} />
                   </button>
-                </PopoverTrigger>
-                <PopoverContent
-                  align="end"
-                  sideOffset={8}
-                  className="w-[min(100vw-2rem,240px)] overflow-hidden p-1.5"
+                  <Popover open={accountOpen} onOpenChange={setAccountOpen}>
+                    <PopoverTrigger asChild>
+                      <button
+                        type="button"
+                        onClick={() => playRuixenClick("soft")}
+                        className="hidden overflow-hidden rounded-full md:inline-flex"
+                        aria-label={t("profile")}
+                      >
+                        {avatar ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={avatar}
+                            alt=""
+                            className="h-6 w-6 rounded-full object-cover"
+                          />
+                        ) : (
+                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
+                            <User className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
+                          </span>
+                        )}
+                      </button>
+                    </PopoverTrigger>
+                    <PopoverContent
+                      align="end"
+                      sideOffset={8}
+                      className="w-[min(100vw-2rem,240px)] overflow-hidden p-1.5"
+                    >
+                      <AccountMenu
+                        onJoin={openJoin}
+                        onSettings={openSettings}
+                        onProfile={openProfile}
+                        onQr={openQr}
+                        joinLabel={t("joinCode")}
+                        settingsLabel={t("settings")}
+                        profileLabel={t("viewProfile")}
+                        qrLabel={t("myQr")}
+                      />
+                    </PopoverContent>
+                  </Popover>
+                </>
+              ) : (
+                <SoundLink
+                  href={loginHref(pathname)}
+                  sound="soft"
+                  className="hidden px-2 py-1 text-sm font-medium text-white/80 transition hover:text-white sm:inline"
                 >
-                  <AccountMenu
-                    onJoin={openJoin}
-                    onSettings={openSettings}
-                    onProfile={openProfile}
-                    onQr={openQr}
-                    joinLabel={t("joinCode")}
-                    settingsLabel={t("settings")}
-                    profileLabel={t("viewProfile")}
-                    qrLabel={t("myQr")}
-                  />
-                </PopoverContent>
-              </Popover>
+                  {t("signIn")}
+                </SoundLink>
+              )}
               <button
                 type="button"
                 className="inline-flex rounded-md p-1.5 text-white/70 md:hidden"
@@ -368,7 +387,7 @@ export function TopNav() {
             {navLinks.map(({ href, label, icon: Icon }) => (
               <SoundLink
                 key={href}
-                href={href}
+                href={hrefFor(href)}
                 sound="nav"
                 onClick={() => setMobileOpen(false)}
                 className="flex items-center gap-3 rounded-xl px-3 py-3 text-white/80"
@@ -378,7 +397,7 @@ export function TopNav() {
               </SoundLink>
             ))}
             <SoundLink
-              href={routes.create}
+              href={hrefFor(routes.create)}
               sound="action"
               onClick={() => setMobileOpen(false)}
               className="flex items-center gap-3 rounded-xl px-3 py-3 text-white/80"
@@ -386,42 +405,59 @@ export function TopNav() {
               <Plus className="h-5 w-5" strokeWidth={ICON_STROKE} />
               {t("createGroup")}
             </SoundLink>
-            <div className="mt-2 flex flex-col gap-0.5">
-              <AccountMenu
-                onJoin={openJoin}
-                onSettings={openSettings}
-                onProfile={openProfile}
-                onQr={openQr}
-                joinLabel={t("joinCode")}
-                settingsLabel={t("settings")}
-                profileLabel={t("viewProfile")}
-                qrLabel={t("myQr")}
-              />
-            </div>
-            <button
-              type="button"
-              onClick={() => void handleLogout()}
-              className="mt-4 rounded-xl px-3 py-3 text-left text-white/40"
-            >
-              {t("logout")}
-            </button>
+            {user ? (
+              <>
+                <div className="mt-2 flex flex-col gap-0.5">
+                  <AccountMenu
+                    onJoin={openJoin}
+                    onSettings={openSettings}
+                    onProfile={openProfile}
+                    onQr={openQr}
+                    joinLabel={t("joinCode")}
+                    settingsLabel={t("settings")}
+                    profileLabel={t("viewProfile")}
+                    qrLabel={t("myQr")}
+                  />
+                </div>
+                <button
+                  type="button"
+                  onClick={() => void handleLogout()}
+                  className="mt-4 rounded-xl px-3 py-3 text-left text-white/40"
+                >
+                  {t("logout")}
+                </button>
+              </>
+            ) : (
+              <SoundLink
+                href={loginHref(pathname)}
+                sound="soft"
+                onClick={() => setMobileOpen(false)}
+                className="mt-4 rounded-xl px-3 py-3 text-white/80"
+              >
+                {t("signIn")}
+              </SoundLink>
+            )}
           </div>
         </div>
       )}
 
-      <ProfileDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
-      <QrCodeDialog open={qrOpen} onOpenChange={setQrOpen} />
-      <JoinByCodeDialog
-        open={joinOpen}
-        onOpenChange={setJoinOpen}
-        userId={user.id}
-        onJoined={(publicId, status) => {
-          void fetchCommunities();
-          if (status === "active") {
-            router.push(routes.community(publicId));
-          }
-        }}
-      />
+      {user ? (
+        <>
+          <ProfileDialog open={settingsOpen} onOpenChange={setSettingsOpen} />
+          <QrCodeDialog open={qrOpen} onOpenChange={setQrOpen} />
+          <JoinByCodeDialog
+            open={joinOpen}
+            onOpenChange={setJoinOpen}
+            userId={user.id}
+            onJoined={(publicId, status) => {
+              void fetchCommunities();
+              if (status === "active") {
+                router.push(routes.community(publicId));
+              }
+            }}
+          />
+        </>
+      ) : null}
     </>
   );
 }

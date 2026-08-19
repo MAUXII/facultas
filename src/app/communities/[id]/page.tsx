@@ -1,11 +1,12 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { CommunityHub } from "@/components/community-hub/community-hub";
 import { SoundLink } from "@/components/sound-link/sound-link";
 import { routes } from "@/lib/routes";
+import { loginHref } from "@/lib/login-next";
 import { useAuth } from "@/hooks/useAuth";
 import {
   buscarComunidade,
@@ -43,6 +44,7 @@ export default function ComunidadePage() {
   const params = useParams();
   const id = String(params.id);
   const router = useRouter();
+  const pathname = usePathname();
   const { user, loading: authLoading } = useAuth();
   const [comunidade, setComunidade] = useState<Community | null>(null);
   const [members, setMembers] = useState<MemberRow[]>([]);
@@ -56,11 +58,7 @@ export default function ComunidadePage() {
   const [asMember, setAsMember] = useState(false);
 
   useEffect(() => {
-    if (!authLoading && !user) router.push(routes.login);
-  }, [user, authLoading, router]);
-
-  useEffect(() => {
-    if (!user || !id) return;
+    if (authLoading || !id) return;
     const load = async () => {
       setLoading(true);
       try {
@@ -73,6 +71,11 @@ export default function ComunidadePage() {
           router.replace(routes.community(data.public_id));
         }
         setComunidade(data);
+        if (!user) {
+          setMembership(null);
+          setMembers([]);
+          return;
+        }
         const supabase = createClient();
         const { data: member } = await supabase
           .from("community_members")
@@ -94,14 +97,18 @@ export default function ComunidadePage() {
       }
     };
     void load();
-  }, [user, id]);
+  }, [user, id, authLoading, router]);
 
   useEffect(() => {
     setAsMember(false);
   }, [id]);
 
   const handleJoin = async () => {
-    if (!user || !comunidade) return;
+    if (!comunidade) return;
+    if (!user) {
+      router.push(loginHref(pathname));
+      return;
+    }
     setJoining(true);
     playRuixenClick("action");
     try {

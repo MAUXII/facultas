@@ -18,7 +18,7 @@ import { supabaseCommunityWritePort } from "@/lib/community-write-supabase";
 import { uploadComunidadeCover } from "@/lib/cover-upload";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { useUsuario } from "@/hooks/useUsuario";
-import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { getInstituicao } from "@/lib/institutions";
 import {
   COMMUNITY_KINDS,
@@ -81,7 +81,7 @@ const GRUPO_DEFAULTS = defaultSettings("grupo");
 
 export default function CriarComunidadePage() {
   const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading } = useRequireAuth();
   const { usuario } = useUsuario();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [coverIdx, setCoverIdx] = useState(0);
@@ -118,10 +118,6 @@ export default function CriarComunidadePage() {
     user?.user_metadata?.picture ||
     usuario?.avatar_url ||
     null;
-
-  useEffect(() => {
-    if (!user && !loading) router.push(routes.login);
-  }, [user, loading, router]);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);

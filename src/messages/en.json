@@ -14,7 +14,8 @@
     "viewProfile": "View profile",
     "myQr": "My QR",
     "menu": "Menu",
-    "logout": "Log out"
+    "logout": "Log out",
+    "signIn": "Sign in"
   },
   "auth": {
     "signIn": "Sign in",

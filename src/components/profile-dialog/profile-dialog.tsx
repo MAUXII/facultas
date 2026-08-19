@@ -44,7 +44,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
         title: t("loggedOut"),
         description: t("loggedOutHint"),
       });
-      router.push(routes.login);
+      router.push(routes.discover);
       router.refresh();
     } catch {
       toast({

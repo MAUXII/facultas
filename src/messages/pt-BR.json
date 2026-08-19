@@ -14,7 +14,8 @@
     "viewProfile": "Ver perfil",
     "myQr": "Meu QR",
     "menu": "Menu",
-    "logout": "Sair"
+    "logout": "Sair",
+    "signIn": "Entrar"
   },
   "auth": {
     "signIn": "Entrar",

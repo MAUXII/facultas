@@ -1,27 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { CalendarDays, Plus } from "lucide-react";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { CommunityCard } from "@/components/community-card/community-card";
 import { Input } from "@/components/ui/input";
 import { SoundLink } from "@/components/sound-link/sound-link";
-import { useAuth } from "@/hooks/useAuth";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { routes } from "@/lib/routes";
 import { useCommunities } from "../communities-context";
 import { useTranslations } from "next-intl";
 
 export default function CommunitiesPage() {
-  const router = useRouter();
-  const { user, loading } = useAuth();
+  const { user, loading } = useRequireAuth();
   const { communities, fetchCommunities } = useCommunities();
   const [searchTerm, setSearchTerm] = useState("");
   const t = useTranslations("nav");
-
-  useEffect(() => {
-    if (!user && !loading) router.push(routes.login);
-  }, [user, loading, router]);
 
   useEffect(() => {
     void fetchCommunities();

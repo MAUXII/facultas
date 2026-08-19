@@ -1,28 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { HubAtmosphere } from "@/components/community-hub/hub-atmosphere";
 import { CommunityRow } from "@/components/community-row/community-row";
 import { EditProfileDialog } from "@/components/edit-profile-dialog/edit-profile-dialog";
-import { useAuth } from "@/hooks/useAuth";
 import { useUsuario } from "@/hooks/useUsuario";
 import { useCommunities } from "@/app/communities-context";
-import { routes } from "@/lib/routes";
+import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useTranslations } from "next-intl";
 
 export default function ProfilePage() {
-  const router = useRouter();
-  const { user, loading: loadingAuth } = useAuth();
+  const { user, loading: loadingAuth } = useRequireAuth();
   const { usuario, loading: loadingUser, refresh } = useUsuario();
   const { communities, fetchCommunities } = useCommunities();
   const t = useTranslations("profile");
   const [editOpen, setEditOpen] = useState(false);
-
-  useEffect(() => {
-    if (!loadingAuth && !user) router.replace(routes.login);
-  }, [user, loadingAuth, router]);
 
   useEffect(() => {
     if (user) void fetchCommunities();
