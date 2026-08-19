@@ -70,7 +70,7 @@ export const AnimatedTooltip = ({
               width={36}
               src={item.image}
               alt={item.name}
-              className="h-9 w-9 rounded-full object-cover ring-2 ring-[var(--ff-bg)]"
+              className="h-9 w-9 rounded-full object-cover"
             />
           </div>
         );
