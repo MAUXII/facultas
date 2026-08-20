@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   Dialog,
@@ -26,6 +27,8 @@ import { supabaseCommunityWritePort } from "@/lib/community-write-supabase";
 import { uploadComunidadeCover } from "@/lib/cover-upload";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import { toast } from "@/components/ui/use-toast";
+import { useCommunities } from "@/app/communities-context";
+import { routes } from "@/lib/routes";
 import type { Community } from "@/types";
 import { Camera } from "lucide-react";
 import { RichDescriptionEditor } from "@/components/rich-description/rich-description";
@@ -46,6 +49,8 @@ export function EditCommunityDialog({
   userId,
   onSaved,
 }: Props) {
+  const router = useRouter();
+  const { fetchCommunities } = useCommunities();
   const fileRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState(community.name);
   const [descricao, setDescricao] = useState(community.description || "");
@@ -53,6 +58,10 @@ export function EditCommunityDialog({
   const [coverPreview, setCoverPreview] = useState(community.cover_url);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const [confirmRemove, setConfirmRemove] = useState(false);
+  const [confirmName, setConfirmName] = useState("");
+  const canDelete = userId === community.author_id;
   const [formSettings, setFormSettings] = useState(() =>
     toForm(settingsFrom(community)),
   );
@@ -80,6 +89,8 @@ export function EditCommunityDialog({
     setFormSettings(toForm(settingsFrom(community)));
     setCoverPreview(community.cover_url);
     setCoverFile(null);
+    setConfirmRemove(false);
+    setConfirmName("");
   }, [open, community]);
 
   const onPick = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -144,6 +155,41 @@ export function EditCommunityDialog({
       });
     } finally {
       setSaving(false);
+    }
+  };
+
+  const remove = async () => {
+    if (confirmName.trim() !== community.name.trim()) {
+      toast({
+        title: "Nome não confere",
+        description: "Digite o nome da comunidade para confirmar.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setRemoving(true);
+    playRuixenClick("action");
+    try {
+      await createCommunityWrite(supabaseCommunityWritePort()).remove(
+        community.id,
+      );
+      onOpenChange(false);
+      await fetchCommunities();
+      toast({
+        title: "Comunidade excluída",
+        description: "Avisos, materiais e grade foram removidos.",
+      });
+      router.push(routes.communities);
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Não deu para excluir",
+        description: "Só quem criou a comunidade pode apagá-la.",
+        variant: "destructive",
+      });
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -276,6 +322,59 @@ export function EditCommunityDialog({
                     />
                   </label>
                 </div>
+
+                {canDelete ? (
+                  <div className="max-w-sm border-t border-white/10 pt-8">
+                    <p className="text-sm text-white/70">Excluir comunidade</p>
+                    <p className="mt-1 text-sm text-white/40">
+                      Remove avisos, materiais e a grade para todo mundo. Não dá
+                      para desfazer.
+                    </p>
+                    {confirmRemove ? (
+                      <div className="mt-4 flex flex-col gap-3">
+                        <input
+                          value={confirmName}
+                          onChange={(e) => setConfirmName(e.target.value)}
+                          placeholder={community.name}
+                          className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white outline-none placeholder:text-white/25"
+                        />
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            disabled={removing}
+                            onClick={() => {
+                              setConfirmRemove(false);
+                              setConfirmName("");
+                            }}
+                            className="rounded-xl px-4 py-2 text-sm text-white/50 transition hover:text-white"
+                          >
+                            Voltar
+                          </button>
+                          <button
+                            type="button"
+                            disabled={
+                              removing ||
+                              confirmName.trim() !== community.name.trim()
+                            }
+                            onClick={() => void remove()}
+                            className="rounded-xl bg-red-500/90 px-5 py-2 text-sm font-semibold text-white transition hover:bg-red-500 disabled:opacity-40"
+                          >
+                            {removing ? "Excluindo…" : "Excluir de vez"}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button
+                        type="button"
+                        disabled={saving}
+                        onClick={() => setConfirmRemove(true)}
+                        className="mt-4 rounded-xl px-4 py-2 text-sm text-red-300/90 transition hover:bg-red-500/10 hover:text-red-200"
+                      >
+                        Excluir
+                      </button>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
