@@ -13,12 +13,18 @@ import {
 } from "@/components/ui/form";
 import { useToast } from "@/components/ui/use-toast";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
+import {
+  AuthDivider,
+  GoogleSignInButton,
+} from "@/components/auth/google-button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { routes } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/client";
 import { APP_MARK, APP_NAME, APP_TAGLINE } from "@/lib/brand";
+import { BrandMark } from "@/components/brand-mark/brand-mark";
 import { safeNextPath, signupHref } from "@/lib/login-next";
+import { playSnd } from "@/lib/snd";
 
 const FormSchema = z.object({
   email: z.string().min(1, "Email obrigatorio").email("Email invalido"),
@@ -53,6 +59,7 @@ export default function Login() {
     setBusy(false);
 
     if (error) {
+      playSnd("caution");
       toast({
         variant: "destructive",
         title: "Erro ao entrar",
@@ -61,17 +68,40 @@ export default function Login() {
       return;
     }
 
+    playSnd("celebration");
     toast({ title: `Bem-vindo ao ${APP_NAME}` });
     router.push(next || routes.discover);
     router.refresh();
+  };
+
+  const onGoogle = async () => {
+    setBusy(true);
+    const supabase = createClient();
+    const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+      next || routes.discover,
+    )}`;
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo },
+    });
+    if (error) {
+      playSnd("caution");
+      setBusy(false);
+      toast({
+        variant: "destructive",
+        title: "Não foi possível entrar com Google",
+        description: error.message,
+      });
+    }
   };
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[var(--ff-bg)] text-white">
       <Link
         href={routes.discover}
-        className="absolute left-5 top-5 z-10 text-sm font-medium tracking-tight text-white/70 transition hover:text-white md:left-8 md:top-8"
+        className="absolute left-5 top-5 z-10 flex items-center gap-2 text-sm font-medium tracking-tight text-white/70 transition hover:text-white md:left-8 md:top-8"
       >
+        <BrandMark size={20} />
         {APP_MARK}
       </Link>
 
@@ -87,6 +117,12 @@ export default function Login() {
             className="mt-12 flex flex-1 flex-col gap-8"
           >
             <div className="flex flex-col gap-5">
+              <GoogleSignInButton
+                onClick={() => void onGoogle()}
+                disabled={busy}
+              />
+              <AuthDivider />
+
               <FormField
                 control={form.control}
                 name="email"
@@ -134,10 +170,12 @@ export default function Login() {
               <button
                 type="submit"
                 disabled={busy}
+                data-snd={busy ? "disabled" : "button"}
                 className="w-full rounded-2xl bg-white py-4 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
               >
                 {busy ? "Entrando…" : "Continuar"}
               </button>
+
               <p className="text-center text-sm text-white/35">
                 Nao tem conta?{" "}
                 <Link

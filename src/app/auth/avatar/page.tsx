@@ -9,6 +9,7 @@ import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
 import { uploadAvatar } from "@/lib/cover-upload";
 import { APP_MARK } from "@/lib/brand";
+import { BrandMark } from "@/components/brand-mark/brand-mark";
 import { routes } from "@/lib/routes";
 import { safeNextPath } from "@/lib/login-next";
 import { Camera } from "lucide-react";
@@ -137,8 +138,9 @@ export default function AvatarStep() {
 
       <Link
         href={routes.home}
-        className="absolute left-5 top-5 z-10 text-sm font-medium tracking-tight text-white/70 transition hover:text-white md:left-8 md:top-8"
+        className="absolute left-5 top-5 z-10 flex items-center gap-2 text-sm font-medium tracking-tight text-white/70 transition hover:text-white md:left-8 md:top-8"
       >
+        <BrandMark size={20} />
         {APP_MARK}
       </Link>
 

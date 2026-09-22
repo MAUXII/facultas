@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { OverlayScrollbar } from "@/components/overlay-scrollbar/overlay-scrollbar";
 import { TopNav } from "@/components/top-nav/top-nav";
+import { SoundProvider } from "@/components/sound-provider/sound-provider";
 import { CommunitiesProvider } from "./communities-context";
 import { APP_NAME } from "@/lib/brand";
 import { NextIntlClientProvider } from "next-intl";
@@ -25,6 +26,9 @@ const fraunces = Fraunces({
 export const metadata: Metadata = {
   title: APP_NAME,
   description: "Sua faculdade, num so lugar.",
+  verification: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION
+    ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION }
+    : undefined,
 };
 
 export default async function RootLayout({
@@ -55,10 +59,12 @@ export default async function RootLayout({
             storageKey="ff-theme"
           >
             <CommunitiesProvider>
-              <TopNav />
-              {children}
-              <OverlayScrollbar />
-              <Toaster />
+              <SoundProvider>
+                <TopNav />
+                {children}
+                <OverlayScrollbar />
+                <Toaster />
+              </SoundProvider>
             </CommunitiesProvider>
           </ThemeProvider>
         </NextIntlClientProvider>

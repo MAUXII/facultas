@@ -1,4 +1,4 @@
-# Login no f.flow
+# Login no Orbit
 
 Como o auth deve funcionar neste produto. Não é um SIS: a pessoa chega para ver turma e grupo, não para abrir boleto.
 
@@ -42,7 +42,7 @@ RLS no Postgres continua sendo a trava real. A UI só deixa de empurrar o login 
 
 ## SSO de campus (depois)
 
-Só com piloto: OAuth da IES ou magic link no e-mail institucional. Continua sendo conta f.flow, não o Ulife. O login institucional não substitui o hub do aluno.
+Só com piloto: OAuth da IES ou magic link no e-mail institucional. Continua sendo conta Orbit, não o Ulife. O login institucional não substitui o hub do aluno.
 
 ## Checklist de implementação
 

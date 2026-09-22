@@ -21,6 +21,7 @@ import { QrCodeDialog } from "@/components/qr-code-dialog/qr-code-dialog";
 import { JoinByCodeDialog } from "@/components/join-by-code/join-by-code";
 import { SoundLink } from "@/components/sound-link/sound-link";
 import { APP_MARK, APP_NAME } from "@/lib/brand";
+import { BrandMark } from "@/components/brand-mark/brand-mark";
 import { routes } from "@/lib/routes";
 import { loginHref } from "@/lib/login-next";
 import { useAuth } from "@/hooks/useAuth";
@@ -160,6 +161,7 @@ export function TopNav() {
 
   const wideNav =
     pathname === routes.create ||
+    pathname === routes.calendar ||
     (!!pathname &&
       pathname.startsWith(`${routes.communities}/`) &&
       pathname !== routes.communities);
@@ -266,8 +268,9 @@ export function TopNav() {
             href={user ? routes.communities : routes.discover}
             sound="soft"
             aria-label={`${APP_NAME} Home`}
-            className="flex shrink-0 items-center text-[15px] font-medium lowercase tracking-tight text-white"
+            className="flex shrink-0 items-center gap-2 text-[15px] font-medium lowercase tracking-tight text-white"
           >
+            <BrandMark size={22} />
             {APP_MARK}
           </SoundLink>
 

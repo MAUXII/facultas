@@ -4,7 +4,7 @@ Mapa para quem clona. Não é visão de produto (isso está no [README](../READM
 
 ## Recorte
 
-FatecFlow é um app que cada pessoa sobe com o **Supabase dela**. O que está neste repo é fonte e schema. RLS no Postgres é a regra de quem lê e quem escreve. Não há um backend nosso além disso.
+Orbit é um app que cada pessoa sobe com o **Supabase dela**. O que está neste repo é fonte e schema. RLS no Postgres é a regra de quem lê e quem escreve. Não há um backend nosso além disso.
 
 A v1 que o público encontra: comunidades + grade da turma + **Descobrir** + calendário honesto (ainda vazio de datas). Sessão com QR não entra neste mapa como feature pronta.
 

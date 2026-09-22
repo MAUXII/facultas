@@ -1,7 +1,7 @@
-# f.flow
+# Orbit
 
 <p align="center">
-  <img src="docs/assets/f-flow-banner.jpg" alt="f.flow — built by students from FATEC, for every campus" width="920" />
+  <img src="docs/assets/f-flow-banner.jpg" alt="Orbit — built by students from FATEC, for every campus" width="920" />
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ---
 
-**f.flow** é o hub open source da **faculdade**: turma, grupo, monitoria e evento num só app. A pessoa cria ou entra numa **comunidade**, o representante monta a **grade** da semana, o **Descobrir** mostra o que é público na instituição, e o **calendário** é a agenda pessoal (na v1, honesta e ainda vazia).
+**Orbit** é o hub open source da **faculdade**: turma, grupo, monitoria e evento num só app. A pessoa cria ou entra numa **comunidade**, o representante monta a **grade** da semana, o **Descobrir** mostra o que é público na instituição, e o **calendário** é a agenda pessoal (na v1, honesta e ainda vazia).
 
 Open source aqui = **app + schema**. Cada clone sobe o **próprio** [Supabase](https://supabase.com). Este repositório **não** traz banco, URL nem chave de ninguém.
 

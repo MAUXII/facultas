@@ -1,4 +1,4 @@
-# FatecFlow
+# Orbit
 
 Hub acadêmico. A pessoa organiza a faculdade em comunidades. O calendário pessoal junta as datas da vida dela. A grade da turma é outra coisa.
 

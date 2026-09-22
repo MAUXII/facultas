@@ -177,6 +177,43 @@ body::-webkit-scrollbar {
   }
 }
 
+/* Marca Facultas — azul flutuando como onda dentro do círculo */
+.ff-brand-mark__sea {
+  background-size: cover;
+  background-position: 40% 55%;
+  background-repeat: no-repeat;
+  will-change: transform, background-position, filter;
+}
+
+.ff-brand-mark--waves .ff-brand-mark__sea {
+  animation: ff-brand-waves 9s ease-in-out infinite;
+}
+
+@keyframes ff-brand-waves {
+  0%,
+  100% {
+    transform: translate3d(-4%, 2%, 0) scale(1.08) rotate(-2deg);
+    background-position: 28% 62%;
+    filter: hue-rotate(-8deg) saturate(1.05);
+  }
+  33% {
+    transform: translate3d(5%, -3%, 0) scale(1.14) rotate(3deg);
+    background-position: 68% 38%;
+    filter: hue-rotate(10deg) saturate(1.15);
+  }
+  66% {
+    transform: translate3d(-2%, 4%, 0) scale(1.1) rotate(-1deg);
+    background-position: 48% 72%;
+    filter: hue-rotate(4deg) saturate(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ff-brand-mark--waves .ff-brand-mark__sea {
+    animation: none;
+  }
+}
+
 .bg-custom-gradient {
   background: linear-gradient(
     250deg,

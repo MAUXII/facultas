@@ -13,4 +13,6 @@ export const routes = {
   avatar: "/auth/avatar",
   onboarding: "/onboarding",
   profile: "/profile",
+  privacy: "/privacy",
+  terms: "/terms",
 } as const;

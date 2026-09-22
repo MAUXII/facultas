@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarDays, Plus } from "lucide-react";
+import { CalendarDays, Plus, Search } from "lucide-react";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { CommunityCard } from "@/components/community-card/community-card";
-import { Input } from "@/components/ui/input";
+import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
 import { SoundLink } from "@/components/sound-link/sound-link";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { routes } from "@/lib/routes";
@@ -49,12 +49,21 @@ export default function CommunitiesPage() {
           </h1>
         </div>
 
-        <Input
-          className="h-12 rounded-xl border-0 bg-[var(--ff-surface)] px-4 text-white placeholder:text-white/30 focus-visible:ring-1 focus-visible:ring-white/20"
-          placeholder="Buscar comunidade"
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-        />
+        <LiquidGlass className="w-full rounded-2xl">
+          <label className="flex h-12 w-full items-center gap-3 px-4">
+            <Search
+              className="h-4 w-4 shrink-0 text-white/35"
+              strokeWidth={1.75}
+            />
+            <input
+              type="search"
+              placeholder="Buscar comunidade"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="h-full w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
+            />
+          </label>
+        </LiquidGlass>
 
         {sorted.length > 0 ? (
           <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">

@@ -12,6 +12,64 @@ import {
 const FADE =
   "linear-gradient(180deg, #000 0%, #000 22%, rgba(0,0,0,0.55) 48%, transparent 82%)";
 
+/** GIF/WebP animado no blur = cara. Congela 1 frame (canvas) pra o atmosphere. */
+function freezeCoverFrame(url: string): Promise<string | null> {
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.decoding = "async";
+    if (/^https?:\/\//i.test(url)) {
+      img.crossOrigin = "anonymous";
+    }
+    img.onload = () => {
+      try {
+        const max = 96;
+        const w = img.naturalWidth || 1;
+        const h = img.naturalHeight || 1;
+        const scale = Math.min(1, max / Math.max(w, h));
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.max(1, Math.round(w * scale));
+        canvas.height = Math.max(1, Math.round(h * scale));
+        const ctx = canvas.getContext("2d");
+        if (!ctx) {
+          resolve(null);
+          return;
+        }
+        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+        resolve(canvas.toDataURL("image/jpeg", 0.72));
+      } catch {
+        resolve(null);
+      }
+    };
+    img.onerror = () => resolve(null);
+    img.src = url;
+  });
+}
+
+function useBackdropSrc(coverUrl: string | null) {
+  const [backdropSrc, setBackdropSrc] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!coverUrl) {
+      setBackdropSrc(null);
+      return;
+    }
+
+    let live = true;
+    // Sempre 1 frame no canvas: GIF/blob não anima o blur; JPG/PNG ficam iguais.
+    void freezeCoverFrame(coverUrl).then((frozen) => {
+      if (!live) return;
+      // Sem CORS: não usa a URL crua (evita GIF animando no atmosphere).
+      setBackdropSrc(frozen);
+    });
+
+    return () => {
+      live = false;
+    };
+  }, [coverUrl]);
+
+  return backdropSrc;
+}
+
 export function HubAtmosphere({
   coverUrl,
   seed,
@@ -25,6 +83,7 @@ export function HubAtmosphere({
 }) {
   const index = coverIndex(seed);
   const [tint, setTint] = useState(placeholderTint(seed));
+  const backdropSrc = useBackdropSrc(coverUrl);
 
   useEffect(() => {
     if (!coverUrl) {
@@ -78,10 +137,10 @@ export function HubAtmosphere({
       }
       style={{ background: soft ? "var(--ff-bg)" : tint }}
     >
-      {coverUrl ? (
+      {backdropSrc ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img
-          src={coverUrl}
+          src={backdropSrc}
           alt=""
           className={`${wash} ${soft ? "opacity-20" : "opacity-70"}`}
           style={{

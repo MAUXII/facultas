@@ -11,6 +11,7 @@ import {
   matchInstituicaoPorEmail,
 } from "@/lib/institutions";
 import { APP_MARK } from "@/lib/brand";
+import { BrandMark } from "@/components/brand-mark/brand-mark";
 import { routes } from "@/lib/routes";
 import { toast } from "@/components/ui/use-toast";
 import { Check } from "lucide-react";
@@ -92,7 +93,8 @@ export default function OnboardingPage() {
   return (
     <div className="min-h-screen bg-[var(--ff-bg)] text-white">
       <div className="mx-auto flex min-h-screen w-full max-w-lg flex-col px-5 pb-10 pt-16 md:pt-24">
-        <p className="text-sm font-medium lowercase tracking-tight text-white/40">
+        <p className="flex items-center gap-2 text-sm font-medium lowercase tracking-tight text-white/40">
+          <BrandMark size={18} />
           {APP_MARK}
         </p>
         <h1 className="mt-3 text-4xl font-semibold tracking-tight md:text-5xl">

@@ -1,4 +1,4 @@
--- FatecFlow · initial schema (Supabase / Postgres)
+-- Orbit · initial schema (Supabase / Postgres)
 -- Run in SQL Editor OR: supabase db push
 
 create extension if not exists "pgcrypto";

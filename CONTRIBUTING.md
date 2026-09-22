@@ -1,6 +1,6 @@
-# Contribuir no f.flow
+# Contribuir no Orbit
 
-Obrigado por querer ajudar. A UI é **pt-BR**. Código, branch, commit e URL são em **inglês**. A marca na interface é **f.flow**; o nome longo no código (`APP_NAME`) ainda pode aparecer como FatecFlow em título de aba / metadados.
+Obrigado por querer ajudar. A UI é **pt-BR**. Código, branch, commit e URL são em **inglês**. A marca na interface é **Orbit** (`APP_NAME` / `APP_MARK` em `src/lib/brand.ts`).
 
 ```text
 issue / ideia  →  branch  →  PR pequeno  →  review  →  main
