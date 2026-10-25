@@ -1,6 +1,6 @@
-# Contribuir no Orbit
+# Contribuir no Facultas
 
-Obrigado por querer ajudar. A UI é **pt-BR**. Código, branch, commit e URL são em **inglês**. A marca na interface é **Orbit** (`APP_NAME` / `APP_MARK` em `src/lib/brand.ts`).
+Obrigado por querer ajudar. A UI é **pt-BR**. Código, branch, commit e URL são em **inglês**. A marca na interface é **Facultas** (`APP_NAME` / `APP_MARK` em `src/lib/brand.ts`). Notas de produto e comparativo ficam em `docs/internal/` e não entram no GitHub.
 
 ```text
 issue / ideia  →  branch  →  PR pequeno  →  review  →  main
@@ -27,7 +27,7 @@ npm install
 npm run dev
 ```
 
-No SQL Editor do **seu** projeto, rode `001` … `009` (a `000` só se ainda tiver tabela antiga em português). Receita completa: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
+No SQL Editor do **seu** projeto, rode `001` … `016` (a `000` só se ainda tiver tabela antiga em português). Receita completa: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 
 ## Branch e PR
 

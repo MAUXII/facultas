@@ -1,7 +1,7 @@
-# Orbit
+# Facultas
 
 <p align="center">
-  <img src="docs/assets/f-flow-banner.jpg" alt="Orbit — built by students from FATEC, for every campus" width="920" />
+  <img src="docs/assets/f-flow-banner.jpg" alt="Facultas — feito por alunos da FATEC, para qualquer campus" width="920" />
 </p>
 
 <p align="center">
@@ -19,7 +19,7 @@
 
 ---
 
-**Orbit** é o hub open source da **faculdade**: turma, grupo, monitoria e evento num só app. A pessoa cria ou entra numa **comunidade**, o representante monta a **grade** da semana, o **Descobrir** mostra o que é público na instituição, e o **calendário** é a agenda pessoal (na v1, honesta e ainda vazia).
+**Facultas** é o hub open source da **faculdade**: turma, grupo, monitoria e evento num só app. A pessoa cria ou entra numa **comunidade**, o representante monta a **grade** da semana, o **Descobrir** mostra o que é público na instituição, e o **calendário** é a agenda pessoal (o que a pessoa cria, aviso com data e sessão em que marcou presença).
 
 Open source aqui = **app + schema**. Cada clone sobe o **próprio** [Supabase](https://supabase.com). Este repositório **não** traz banco, URL nem chave de ninguém.
 
@@ -29,10 +29,12 @@ Feito por alunos da FATEC; o schema serve **qualquer instituição** de ensino s
 
 | Tem | Ainda não |
 | --- | --- |
-| Comunidade (turma, grupo, monitoria, evento) com capa, avisos, materiais, membros | Sessão com QR / presença |
-| Grade na turma (aula à mão, seg–sáb) | Calendário cheio de datas |
-| Entrar por código (privada fora do Descobrir) | Aviso que cai sozinho na agenda |
-| Nav: Comunidades · Calendário · Descobrir | Scraping do SIGA |
+| Comunidade (turma, grupo, monitoria, evento) com capa, avisos, materiais, membros | Check-in por QR |
+| Grade na turma (aula à mão, seg–sáb) | Scraping do SIGA |
+| Entrar por código (privada fora do Descobrir) | |
+| Calendário pessoal, aviso com data e sessão de quem marcou presença | |
+| Quem tem o link vê a sala e assina o calendário, sem conta | |
+| Nav: Comunidades · Calendário · Descobrir | |
 
 Glossário: [CONTEXT.md](CONTEXT.md) · Mapa do código: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Setup do banco: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
 
@@ -57,7 +59,7 @@ flowchart LR
 
 - **Comunidades** — lista em que você já é membro (pública ou por código).
 - **Descobrir** — vitrine de comunidades **públicas** (`/discover`).
-- **Calendário** — agenda pessoal; na v1 só o empty state (sem mentir com CTA errado).
+- **Calendário** — agenda pessoal: o que a pessoa cria e o aviso com data que a comunidade mandou.
 - **Grade** — mora **dentro** da turma, não no calendário.
 
 ## Schema (visão rápida)
@@ -90,7 +92,7 @@ erDiagram
   }
 ```
 
-Migrations na ordem: `001` → `009` em [`supabase/migrations/`](supabase/migrations/). Detalhe: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
+Migrations na ordem: `001` → `016` em [`supabase/migrations/`](supabase/migrations/). Detalhe: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
 
 ## Stack
 
@@ -124,7 +126,7 @@ npm install
 
 1. Crie um projeto **seu** no [Supabase](https://supabase.com).
 2. Cole URL e anon key no `.env.local` (veja `.env.example`).
-3. No SQL Editor **do seu** projeto, rode `001` … `009` nesta ordem — [passo a passo](docs/SUPABASE_SETUP.md).
+3. No SQL Editor **do seu** projeto, rode `001` … `016` nesta ordem — [passo a passo](docs/SUPABASE_SETUP.md).
 4. `npm run dev` → [http://localhost:3000](http://localhost:3000)
 
 ```bash

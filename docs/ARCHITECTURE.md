@@ -4,9 +4,9 @@ Mapa para quem clona. Não é visão de produto (isso está no [README](../READM
 
 ## Recorte
 
-Orbit é um app que cada pessoa sobe com o **Supabase dela**. O que está neste repo é fonte e schema. RLS no Postgres é a regra de quem lê e quem escreve. Não há um backend nosso além disso.
+Facultas é um app que cada pessoa sobe com o **Supabase dela**. O que está neste repo é fonte e schema. RLS no Postgres é a regra de quem lê e quem escreve. Não há um backend nosso além disso.
 
-A v1 que o público encontra: comunidades + grade da turma + **Descobrir** + calendário honesto (ainda vazio de datas). Sessão com QR não entra neste mapa como feature pronta.
+A v1 que o público encontra: comunidades + grade da turma + **Descobrir** + calendário pessoal (o que a pessoa cria, aviso com data e sessão em que marcou presença). Check-in por QR não entra neste mapa.
 
 ```mermaid
 flowchart TB
@@ -41,7 +41,7 @@ flowchart TB
 | `src/components/discover-card/` | Cards do Descobrir. |
 | `src/messages/` | Copy pt-BR e en. |
 | `src/lib/supabase/` | Cliente browser e servidor. |
-| `supabase/migrations/` | Schema e RLS, `001` … `009`. |
+| `supabase/migrations/` | Schema e RLS, `001` … `016`. |
 | `CONTEXT.md` | Glossário. Sem detalhe de implementação. |
 | `docs/adr/` | Decisões duras (v1, calendário + Descobrir). |
 | `docs/SUPABASE_SETUP.md` | Como **você** cria a instância **sua**. |

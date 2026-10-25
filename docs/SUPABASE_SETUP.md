@@ -28,6 +28,11 @@ Os arquivos estão no clone, em `supabase/migrations/`. Abra cada um, copie o SQ
 | 9 | `009_community_public_id.sql` | `public_id` curto na URL |
 | 10 | `010_profiles_read_co_members.sql` | Ler nome/foto de quem compartilha comunidade |
 | 11 | `011_avatar_sync_and_storage_prune.sql` | Preenche `avatar_url` + limpa avatars órfãos no bucket |
+| 12 | `012_communities_select_anon.sql` | Comunidades públicas legíveis no Descobrir |
+| 13 | `013_calendar_events_feed.sql` | Eventos pessoais + token/feed ICS de assinatura |
+| 14 | `014_aviso_agenda.sql` | Aviso com data na agenda dos membros e no feed |
+| 15 | `015_link_access.sql` | Quem tem o link vê a sala e assina o calendário, sem conta |
+| 16 | `016_sessoes.sql` | Sessão: admin abre, membro marca presença, agenda lê quem foi |
 
 CLI, se você usa:
 
@@ -42,6 +47,8 @@ institutions ──┬── campuses
                └── communities ──┬── community_members ── profiles
                                  ├── community_posts / materials (hub)
                                  └── aulas (grade)
+
+profiles ── calendar_events (agenda pessoal + feed ICS)
 ```
 
 Bucket de Storage: `covers` (criado no SQL).

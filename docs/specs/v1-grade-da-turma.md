@@ -2,11 +2,11 @@
 
 Corte da primeira versão pública. Glossário: CONTEXT.md. Decisões: docs/adr/0001 e 0002. Comportamento testável no módulo Grade.
 
-O Orbit é hub da **turma** mais o **calendário pessoal** de cada um. Não é feed de evento. Calendário fica, porque é a agenda de uma pessoa. **Descobrir** é onde se acha comunidade pública da faculdade. Evento é tipo de comunidade acadêmica, não card de agenda.
+O Facultas é hub da **turma** mais o **calendário pessoal** de cada um. Não é feed de evento. Calendário fica, porque é a agenda de uma pessoa. **Descobrir** é onde se acha comunidade pública da faculdade. Evento é tipo de comunidade acadêmica, não card de agenda.
 
 ## Problem Statement
 
-O representante da turma não tem um lugar estável para a semana letiva. WhatsApp some, o PDF da unidade muda de formato, o SIGA ninguém abre só para ver a sala. O Orbit já tem o hub da comunidade, mas a **grade** não existe. O calendário pessoal (o certo) ainda ensina o errado: um botão cria comunidade-evento. A nav precisa de um terceiro link com job claro (**Descobrir**), sem virar feed. Quem passa lista não é a pessoa que esta v1 precisa trazer de volta toda semana.
+O representante da turma não tem um lugar estável para a semana letiva. WhatsApp some, o PDF da unidade muda de formato, o SIGA ninguém abre só para ver a sala. O Facultas já tem o hub da comunidade, mas a **grade** não existe. O calendário pessoal (o certo) ainda ensina o errado: um botão cria comunidade-evento. A nav precisa de um terceiro link com job claro (**Descobrir**), sem virar feed. Quem passa lista não é a pessoa que esta v1 precisa trazer de volta toda semana.
 
 ## Solution
 

@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 /**
  * Magnetic Tabs — pill indicator com spring.
- * Default = visual original do Orbit (calendário etc.).
+ * Default = visual original do Facultas (calendário etc.).
  * `glass` / `size` / `contentBoxed` = variante estilo Leitour (perfil).
  */
 
@@ -136,7 +136,7 @@ export function MagneticTabs({
 
   const activeItem = items.find((t) => t.value === active);
 
-  /* ── Visual original Orbit (calendário) ── */
+  /* ── Visual original Facultas (calendário) ── */
   if (!useLeitourChrome) {
     return (
       <div className={cn(className)}>
