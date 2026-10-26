@@ -3,8 +3,7 @@ import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { Toaster } from "@/components/ui/toaster";
-import { OverlayScrollbar } from "@/components/overlay-scrollbar/overlay-scrollbar";
-import { TopNav } from "@/components/top-nav/top-nav";
+import { AppChrome } from "@/components/app-chrome/app-chrome";
 import { SoundProvider } from "@/components/sound-provider/sound-provider";
 import { CommunitiesProvider } from "./communities-context";
 import { APP_NAME } from "@/lib/brand";
@@ -60,9 +59,7 @@ export default async function RootLayout({
           >
             <CommunitiesProvider>
               <SoundProvider>
-                <TopNav />
-                {children}
-                <OverlayScrollbar />
+                <AppChrome>{children}</AppChrome>
                 <Toaster />
               </SoundProvider>
             </CommunitiesProvider>
