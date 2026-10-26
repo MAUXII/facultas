@@ -16,6 +16,7 @@ import { DrawerInnerContent } from "@/components/ruixen/drawer-inner-content";
 import { RichDescriptionView } from "@/components/rich-description/rich-description";
 import { isEmptyRichText } from "@/lib/sanitize-html";
 import { coverIndex } from "@/lib/cover-tint";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { communityAction, labelKind } from "@/lib/community";
 import { getInstituicao } from "@/lib/institutions";
 import { routes } from "@/lib/routes";
@@ -177,10 +178,8 @@ export function CommunityPreviewDrawer({
           }`}
         >
           {community.cover_url ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
+            <LiveMedia
               src={community.cover_url}
-              alt=""
               className="h-full w-full object-cover"
             />
           ) : (
@@ -218,22 +217,22 @@ export function CommunityPreviewDrawer({
         <div className="flex flex-col gap-3 text-sm">
           <p className="flex items-start gap-3 text-white/70">
             <CalendarDays className="mt-0.5 h-4 w-4 shrink-0 text-white/35" strokeWidth={1.5} />
-            <span className="capitalize">{when}</span>
+            <span>{when}</span>
           </p>
           <p className="flex items-start gap-3 text-white/70">
             <MapPin className="mt-0.5 h-4 w-4 shrink-0 text-white/35" strokeWidth={1.5} />
             <span>{place || "Sem instituição"}</span>
           </p>
-          <p className="flex items-start gap-3 text-white/70">
-            <Users className="mt-0.5 h-4 w-4 shrink-0 text-white/35" strokeWidth={1.5} />
-            <span>
-              {community.members_count
-                ? `${community.members_count} ${
-                    community.members_count === 1 ? "membro" : "membros"
-                  }`
-                : "Nenhum membro ainda"}
-            </span>
-          </p>
+          {community.members_count ? (
+            <p className="flex items-start gap-3 text-white/70">
+              <Users className="mt-0.5 h-4 w-4 shrink-0 text-white/35" strokeWidth={1.5} />
+              <span>
+                {community.members_count === 1
+                  ? "1 membro"
+                  : `${community.members_count} membros`}
+              </span>
+            </p>
+          ) : null}
         </div>
 
         {!isEmptyRichText(community.description) ? (

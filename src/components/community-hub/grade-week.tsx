@@ -1,6 +1,10 @@
 "use client";
 
-import { WEEKDAYS, type Aula, type Weekday } from "@/lib/grade";
+import {
+  visibleGradeDays,
+  type Aula,
+  type Weekday,
+} from "@/lib/grade";
 import { GlassCard } from "@/components/ui/glasscn/glass-card";
 
 function todayWeekday(): Weekday | null {
@@ -22,23 +26,33 @@ function todayWeekday(): Weekday | null {
 export function GradeWeek({
   aulas,
   dayShortLabels,
+  mode,
   onSelectAula,
 }: {
   aulas: Aula[];
   dayShortLabels: Record<Weekday, string>;
+  mode: "admin" | "member";
   onSelectAula?: (aula: Aula) => void;
 }) {
   const today = todayWeekday();
-  const byDay = Object.fromEntries(
-    WEEKDAYS.map((day) => [day, aulas.filter((aula) => aula.dia === day)]),
-  ) as Record<Weekday, Aula[]>;
+  const days = visibleGradeDays(aulas, mode);
+
+  if (days.length === 0) {
+    return null;
+  }
 
   return (
     <div className="-mx-1 overflow-x-auto pb-1">
-      <div className="grid min-w-[36rem] grid-cols-6 gap-2 px-1">
-        {WEEKDAYS.map((day) => {
+      <div
+        className="grid gap-3 px-1"
+        style={{
+          gridTemplateColumns: `repeat(${days.length}, minmax(0, 1fr))`,
+          minWidth: `${Math.max(days.length * 7.5, 18)}rem`,
+        }}
+      >
+        {days.map((day) => {
           const isToday = day === today;
-          const dayAulas = byDay[day];
+          const dayAulas = aulas.filter((aula) => aula.dia === day);
           return (
             <div key={day} className="min-w-0">
               <p
@@ -52,7 +66,7 @@ export function GradeWeek({
                 {dayAulas.map((aula) => (
                   <GlassCard
                     key={aula.id}
-                    className={`gap-0 px-2.5 py-2 text-white ${
+                    className={`gap-0 px-3 py-2.5 text-white ${
                       onSelectAula ? "cursor-pointer" : ""
                     }`}
                     surfaceClassName="rounded-xl"

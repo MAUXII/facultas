@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalShell title="Termos" updated="20 de setembro de 2026">
+    <LegalShell title="Termos" updated="22 de setembro de 2026">
       <LegalSection title="1. Aceite">
         <p>
           Ao usar o {APP_NAME}, você concorda com estes Termos. Se não
@@ -41,8 +41,11 @@ export default function TermsPage() {
           <li>assediar, discriminar ou publicar conteúdo ilegal;</li>
           <li>tentar invadir, sobrecarregar ou quebrar o serviço;</li>
           <li>
-            usar integrações (como Google Calendar) de forma abusiva ou fora do
-            que foi autorizado.
+            tratar o link secreto do calendário como senha (quem tiver o link
+            consegue ler seus eventos);
+          </li>
+          <li>
+            usar o serviço de forma abusiva ou fora do que foi autorizado.
           </li>
         </ul>
         <p>
@@ -61,9 +64,11 @@ export default function TermsPage() {
 
       <LegalSection title="6. Integrações de terceiros">
         <p>
-          Recursos como login Google e Google Calendar dependem de serviços de
-          terceiros. O uso desses recursos também está sujeito aos termos e
-          políticas do provedor correspondente.
+          Recursos como login Google dependem de serviços de terceiros. Se você
+          assinar o calendário do {APP_NAME} no Google, Apple ou Outlook, esses
+          apps passam a buscar periodicamente o feed publicado por nós. O uso
+          desses apps também está sujeito aos termos e políticas do provedor
+          correspondente.
         </p>
       </LegalSection>
 

@@ -47,8 +47,12 @@ export function isEmptyRichText(html: string | undefined | null): boolean {
 
 export function toRenderableHtml(value: string): string {
   if (!value) return "";
-  if (looksLikeHtml(value)) return sanitizeHtml(value);
-  return sanitizeHtml(
-    `<p>${escapeHtml(value).replace(/\n/g, "<br>")}</p>`
-  );
+  const raw = looksLikeHtml(value)
+    ? value
+    : `<p>${escapeHtml(value).replace(/\n/g, "<br>")}</p>`;
+  // TipTap grava Enter como <p></p>; parágrafo vazio some no layout.
+  const withBreaks = raw
+    .replace(/<p>(?:\s|&nbsp;)*<\/p>/gi, "<p><br></p>")
+    .replace(/<p>\s*<br\s*\/?>\s*<\/p>/gi, "<p><br></p>");
+  return sanitizeHtml(withBreaks);
 }

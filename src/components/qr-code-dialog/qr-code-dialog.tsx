@@ -43,7 +43,7 @@ export function QrCodeDialog({ open, onOpenChange }: QrCodeDialogProps) {
             <DialogTitle className="ff-display text-4xl font-medium tracking-tight text-white/50 md:text-5xl">
               {t("qrTitle")}
             </DialogTitle>
-            <p className="mt-3 max-w-md text-sm text-white/40">{t("qrHint")}</p>
+            <p className="mt-3 max-w-md text-sm text-white/60">{t("qrHint")}</p>
 
             <div className="mt-12 flex justify-start">
               <QRCodePessoal compact />

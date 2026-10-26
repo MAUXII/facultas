@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { cn } from "@/lib/utils";
 import { glassVariantStyles } from "@/lib/glass-variants";
 
@@ -64,10 +65,7 @@ export const AnimatedTooltip = ({
                 </motion.div>
               ) : null}
             </AnimatePresence>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              height={36}
-              width={36}
+            <LiveMedia
               src={item.image}
               alt={item.name}
               className="h-9 w-9 rounded-full object-cover"

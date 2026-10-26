@@ -16,6 +16,7 @@ describe("Community settings", () => {
       requerAprovacao: false,
       avisosWriters: "admins",
       materiaisWriters: "admins",
+      peloLink: false,
     });
   });
 
@@ -47,6 +48,7 @@ describe("Community settings", () => {
         requerAprovacao: true,
         membrosAvisos: true,
         membrosMateriais: false,
+        peloLink: true,
       }),
     ).toEqual({
       kind: "turma",
@@ -54,6 +56,7 @@ describe("Community settings", () => {
       requerAprovacao: true,
       avisosWriters: "members",
       materiaisWriters: "admins",
+      peloLink: true,
     });
   });
 
@@ -64,6 +67,7 @@ describe("Community settings", () => {
       requerAprovacao: true,
       membrosAvisos: true,
       membrosMateriais: false,
+      peloLink: true,
     };
     expect(toForm(fromForm(form))).toEqual(form);
   });
@@ -87,6 +91,11 @@ describe("Community settings", () => {
 
   test("grupo without institution is valid", () => {
     expect(() => assertSettings(defaultSettings("grupo"), null)).not.toThrow();
+  });
+
+  test("link access defaults off when the column is absent", () => {
+    expect(settingsFrom({ visibility: "code" }).peloLink).toBe(false);
+    expect(settingsFrom({ link_access: true }).peloLink).toBe(true);
   });
 
   test("turma with institution is valid", () => {

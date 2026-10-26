@@ -3,6 +3,7 @@
 import { coverIndex } from "@/lib/cover-tint";
 import { labelKind } from "@/lib/community";
 import { getInstituicao } from "@/lib/institutions";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { cn } from "@/lib/utils";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import type { Community } from "@/types";
@@ -38,10 +39,8 @@ export function DiscoverCard({
         )}
       >
         {community.cover_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <LiveMedia
             src={community.cover_url}
-            alt=""
             className="h-full w-full object-cover transition-opacity duration-300 group-hover:opacity-80"
           />
         ) : null}

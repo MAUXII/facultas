@@ -1,6 +1,7 @@
 import { describe, expect, test } from "vitest";
 import {
   createGrade,
+  visibleGradeDays,
   type AulaDraft,
   type GradePort,
   type GradeRole,
@@ -210,5 +211,32 @@ describe("Grade", () => {
     });
     expect(next.overlap).toBe(false);
     expect(await grade.list(TURMA, MEMBER)).toHaveLength(2);
+  });
+});
+
+describe("visibleGradeDays", () => {
+  test("admin always shows mon-fri and hides empty saturday", () => {
+    expect(
+      visibleGradeDays([{ dia: "wed" }, { dia: "mon" }], "admin"),
+    ).toEqual(["mon", "tue", "wed", "thu", "fri"]);
+  });
+
+  test("admin shows saturday only when there is a saturday aula", () => {
+    expect(
+      visibleGradeDays([{ dia: "fri" }, { dia: "sat" }], "admin"),
+    ).toEqual(["mon", "tue", "wed", "thu", "fri", "sat"]);
+  });
+
+  test("member only shows days that have aulas", () => {
+    expect(
+      visibleGradeDays(
+        [{ dia: "mon" }, { dia: "thu" }, { dia: "mon" }],
+        "member",
+      ),
+    ).toEqual(["mon", "thu"]);
+  });
+
+  test("member includes saturday when it has an aula", () => {
+    expect(visibleGradeDays([{ dia: "sat" }], "member")).toEqual(["sat"]);
   });
 });

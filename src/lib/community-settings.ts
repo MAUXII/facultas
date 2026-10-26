@@ -9,6 +9,7 @@ export type CommunitySettings = {
   requerAprovacao: boolean;
   avisosWriters: WriterPolicy;
   materiaisWriters: WriterPolicy;
+  peloLink: boolean;
 };
 
 export class SettingsError extends Error {
@@ -35,6 +36,7 @@ export function defaultSettings(kind: CommunityKind): CommunitySettings {
     requerAprovacao: false,
     avisosWriters: "admins",
     materiaisWriters: "admins",
+    peloLink: false,
   };
 }
 
@@ -44,6 +46,7 @@ export function settingsFrom(row: {
   requires_approval?: boolean | null;
   avisos_writers?: string | null;
   materiais_writers?: string | null;
+  link_access?: boolean | null;
 }): CommunitySettings {
   return {
     kind: asKind(row.kind),
@@ -51,6 +54,7 @@ export function settingsFrom(row: {
     requerAprovacao: row.requires_approval === true,
     avisosWriters: asPolicy(row.avisos_writers),
     materiaisWriters: asPolicy(row.materiais_writers),
+    peloLink: row.link_access === true,
   };
 }
 
@@ -60,6 +64,7 @@ export function fromForm(input: {
   requerAprovacao: boolean;
   membrosAvisos: boolean;
   membrosMateriais: boolean;
+  peloLink: boolean;
 }): CommunitySettings {
   return {
     kind: input.kind,
@@ -67,6 +72,7 @@ export function fromForm(input: {
     requerAprovacao: input.requerAprovacao,
     avisosWriters: input.membrosAvisos ? "members" : "admins",
     materiaisWriters: input.membrosMateriais ? "members" : "admins",
+    peloLink: input.peloLink === true,
   };
 }
 
@@ -77,6 +83,7 @@ export function toForm(settings: CommunitySettings) {
     requerAprovacao: settings.requerAprovacao,
     membrosAvisos: settings.avisosWriters === "members",
     membrosMateriais: settings.materiaisWriters === "members",
+    peloLink: settings.peloLink === true,
   };
 }
 

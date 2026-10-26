@@ -13,10 +13,12 @@ export function GradePanel({
   communityId,
   userId,
   canEdit,
+  fixedAulas,
 }: {
   communityId: string;
   userId: string;
   canEdit: boolean;
+  fixedAulas?: Aula[];
 }) {
   const t = useTranslations("grade");
   const [aulas, setAulas] = useState<Aula[]>([]);
@@ -29,6 +31,11 @@ export function GradePanel({
   ) as Record<Weekday, string>;
 
   const load = async () => {
+    if (fixedAulas) {
+      setAulas(fixedAulas);
+      setLoading(false);
+      return;
+    }
     try {
       const list = await createGrade(supabaseGradePort()).list(
         communityId,
@@ -46,7 +53,7 @@ export function GradePanel({
   useEffect(() => {
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [communityId, userId]);
+  }, [communityId, userId, fixedAulas]);
 
   if (loading) {
     return <GlassCard className="h-24 gap-0 animate-pulse p-0" />;
@@ -72,6 +79,7 @@ export function GradePanel({
       <GradeWeek
         aulas={aulas}
         dayShortLabels={dayShortLabels}
+        mode={canEdit ? "admin" : "member"}
         onSelectAula={
           canEdit
             ? (aula) => {

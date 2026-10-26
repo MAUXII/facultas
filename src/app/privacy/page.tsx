@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalShell title="Privacidade" updated="20 de setembro de 2026">
+    <LegalShell title="Privacidade" updated="22 de setembro de 2026">
       <LegalSection title="1. Quem somos">
         <p>
           O {APP_NAME} é um hub acadêmico open source para comunidades de
@@ -31,8 +31,13 @@ export default function PrivacyPage() {
             do hub.
           </li>
           <li>
-            Autenticação com Google, quando você escolhe entrar ou conectar o
-            Google Calendar (tokens de acesso fornecidos pelo Google).
+            Autenticação com Google, quando você escolhe entrar com a conta
+            Google.
+          </li>
+          <li>
+            Link secreto de assinatura do calendário (token), se você ativar a
+            sincronização com Google Calendar, Apple Calendar ou outro app
+            compatível.
           </li>
           <li>
             Dados técnicos básicos de uso (logs de erro, IP em infraestrutura
@@ -47,21 +52,21 @@ export default function PrivacyPage() {
           <li>criar e manter sua conta;</li>
           <li>operar comunidades, grade e calendário;</li>
           <li>
-            sincronizar eventos com o Google Calendar, somente se você
-            autorizar;
+            publicar um feed de calendário (ICS) com seus eventos, somente se
+            você gerar o link de assinatura;
           </li>
           <li>prevenir abuso, corrigir falhas e melhorar o produto.</li>
         </ul>
         <p>Não vendemos seus dados.</p>
       </LegalSection>
 
-      <LegalSection title="4. Google Calendar">
+      <LegalSection title="4. Assinatura de calendário">
         <p>
-          Se você conectar o Google Calendar, pedimos permissão para ler e
-          escrever eventos na conta Google indicada. Usamos isso só para
-          sincronizar a agenda do {APP_NAME} com o Calendar. Você pode
-          desconectar a qualquer momento no app e também revogar o acesso em
-          https://myaccount.google.com/permissions.
+          Se você sincronizar o calendário, geramos um link secreto (feed ICS)
+          que apps como Google Calendar ou Apple Calendar podem assinar. Quem
+          tiver o link consegue ler seus eventos do {APP_NAME}. Não pedimos
+          acesso de escrita à sua conta Google ou Apple. Você pode gerar um
+          link novo a qualquer momento no app; o link antigo deixa de funcionar.
         </p>
       </LegalSection>
 

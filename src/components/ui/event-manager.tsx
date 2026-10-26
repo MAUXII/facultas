@@ -48,15 +48,14 @@ export interface Event {
   category?: string;
   attendees?: string[];
   tags?: string[];
-  /** Id no Google Calendar, se sincronizado. */
-  googleEventId?: string;
+  /** Data mora fora desta agenda: aviso da comunidade ou sessão com presença. */
+  locked?: boolean;
+  lockKind?: "aviso" | "sessao";
 }
 
 export interface EventManagerProps {
   events?: Event[];
-  onEventCreate?: (
-    event: Event,
-  ) => void | Promise<void | { googleEventId?: string }>;
+  onEventCreate?: (event: Event) => void | Promise<void>;
   onEventUpdate?: (
     id: string,
     event: Event,
@@ -70,8 +69,8 @@ export interface EventManagerProps {
   defaultView?: CalendarView;
   className?: string;
   availableTags?: string[];
-  /** Extra no header (ex.: conectar Google Calendar). */
-  headerExtra?: React.ReactNode;
+  /** Ações na barra à direita (ex.: sincronizar calendário). */
+  headerActions?: React.ReactNode;
 }
 
 type CalendarView = "month" | "week" | "day" | "list";
@@ -142,7 +141,7 @@ export function EventManager({
     "Grupo",
     "Entrega",
   ],
-  headerExtra,
+  headerActions,
 }: EventManagerProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -232,6 +231,7 @@ export function EventManager({
   };
 
   const openSchedule = (target: "start" | "end") => {
+    if (!isCreating && selectedEvent?.locked) return;
     setScheduleTarget(target);
     setScheduleStep(target === "end" ? "time" : "month");
   };
@@ -311,7 +311,7 @@ export function EventManager({
     if (!newEvent.title || !newEvent.startTime || !newEvent.endTime) return;
 
     const event: Event = {
-      id: Math.random().toString(36).slice(2, 11),
+      id: crypto.randomUUID(),
       title: newEvent.title,
       description: newEvent.description,
       startTime: newEvent.startTime,
@@ -324,21 +324,11 @@ export function EventManager({
 
     setEvents((prev) => [...prev, event]);
     closeEventDialog();
-
-    const result = await onEventCreate?.(event);
-    if (result?.googleEventId) {
-      setEvents((prev) =>
-        prev.map((item) =>
-          item.id === event.id
-            ? { ...item, googleEventId: result.googleEventId }
-            : item,
-        ),
-      );
-    }
-  }, [newEvent, colors, categories, onEventCreate]);
+    await onEventCreate?.(event);
+  }, [newEvent, colors, onEventCreate]);
 
   const handleUpdateEvent = useCallback(async () => {
-    if (!selectedEvent) return;
+    if (!selectedEvent || selectedEvent.locked) return;
 
     setEvents((prev) =>
       prev.map((e) => (e.id === selectedEvent.id ? selectedEvent : e)),
@@ -350,6 +340,7 @@ export function EventManager({
   const handleDeleteEvent = useCallback(
     async (id: string) => {
       const existing = events.find((e) => e.id === id);
+      if (existing?.locked) return;
       setEvents((prev) => prev.filter((e) => e.id !== id));
       closeEventDialog();
       await onEventDelete?.(id, existing);
@@ -365,6 +356,7 @@ export function EventManager({
   };
 
   const handleDragStart = useCallback((event: Event) => {
+    if (event.locked) return;
     setDraggedEvent(event);
   }, []);
 
@@ -374,7 +366,7 @@ export function EventManager({
 
   const handleDrop = useCallback(
     (date: Date, hour?: number) => {
-      if (!draggedEvent) return;
+      if (!draggedEvent || draggedEvent.locked) return;
 
       const duration =
         draggedEvent.endTime.getTime() - draggedEvent.startTime.getTime();
@@ -470,16 +462,15 @@ export function EventManager({
     return "Todos os eventos";
   }, [view, currentDate]);
 
+  const formLocked = !isCreating && selectedEvent?.locked === true;
+
   return (
     <div className={cn("flex flex-col gap-8", className)}>
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex min-w-0 flex-col gap-2">
-            <h1 className="min-w-0 text-[28px] font-semibold capitalize tracking-tight text-white">
-              {headerTitle}
-            </h1>
-            {headerExtra}
-          </div>
+          <h1 className="min-w-0 text-[28px] font-semibold tracking-tight text-white">
+            {sentenceCase(headerTitle)}
+          </h1>
           <div className="flex shrink-0 items-center gap-1">
             <Button
               variant="ghost"
@@ -508,6 +499,7 @@ export function EventManager({
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
+            {headerActions}
             <Button
               data-snd="select"
               onClick={() => {
@@ -518,7 +510,7 @@ export function EventManager({
                 setScheduleStep("month");
                 setIsDialogOpen(true);
               }}
-              className="ml-2 h-10 bg-white px-4 text-black shadow-none hover:bg-white/90"
+              className="ml-1 h-10 bg-white px-4 text-black shadow-none hover:bg-white/90"
             >
               <Plus className="mr-2 h-4 w-4" />
               Novo evento
@@ -636,7 +628,11 @@ export function EventManager({
                   ? scheduleTitle
                   : isCreating
                     ? "Novo evento"
-                    : "Editar evento"}
+                    : formLocked
+                      ? selectedEvent?.lockKind === "sessao"
+                        ? "Sessão"
+                        : "Aviso"
+                      : "Editar evento"}
               </DialogTitle>
 
               {scheduleTarget ? (
@@ -671,6 +667,7 @@ export function EventManager({
                   className="mt-12 flex flex-1 flex-col gap-8"
                   onSubmit={(e) => {
                     e.preventDefault();
+                    if (formLocked) return;
                     void (isCreating
                       ? handleCreateEvent()
                       : handleUpdateEvent());
@@ -683,6 +680,7 @@ export function EventManager({
                     <button
                       type="button"
                       data-snd="select"
+                      disabled={formLocked}
                       onClick={() => openSchedule("start")}
                       className={cn(
                         "rounded-[10px] px-2.5 py-0.5 text-[28px] leading-snug transition",
@@ -705,6 +703,7 @@ export function EventManager({
                     <button
                       type="button"
                       data-snd="select"
+                      disabled={formLocked}
                       onClick={() => openSchedule("end")}
                       className={cn(
                         "rounded-[10px] px-2.5 py-0.5 text-[28px] leading-snug transition",
@@ -723,7 +722,16 @@ export function EventManager({
                     </button>
                   </div>
 
+                  {formLocked ? (
+                    <p className="text-sm text-white/75">
+                      {selectedEvent?.lockKind === "sessao"
+                        ? "Presença marcada. A data mora na sessão, não muda aqui."
+                        : "Vem de um aviso da comunidade. A data não muda aqui."}
+                    </p>
+                  ) : null}
+
                   <input
+                    readOnly={formLocked}
                     value={
                       isCreating
                         ? newEvent.title || ""
@@ -745,6 +753,7 @@ export function EventManager({
                   />
 
                   <input
+                    readOnly={formLocked}
                     value={
                       isCreating
                         ? newEvent.description || ""
@@ -777,6 +786,7 @@ export function EventManager({
                           key={cat}
                           type="button"
                           data-snd="select"
+                          disabled={formLocked}
                           onClick={() =>
                             isCreating
                               ? setNewEvent((prev) => ({
@@ -812,6 +822,7 @@ export function EventManager({
                           type="button"
                           data-snd="select"
                           aria-label={color.name}
+                          disabled={formLocked}
                           onClick={() =>
                             isCreating
                               ? setNewEvent((prev) => ({
@@ -846,6 +857,7 @@ export function EventManager({
                           key={tag}
                           type="button"
                           data-snd="select"
+                          disabled={formLocked}
                           onClick={() => toggleTag(tag, isCreating)}
                           className={cn(
                             "rounded-full px-3 py-1 text-xs transition",
@@ -861,7 +873,7 @@ export function EventManager({
                   </div>
 
                   <div className="mt-auto flex items-center justify-end gap-2 pt-10">
-                    {!isCreating ? (
+                    {!isCreating && !formLocked ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -878,22 +890,24 @@ export function EventManager({
                       onClick={closeEventDialog}
                       className="rounded-xl px-4 py-2 text-sm text-white/50 transition hover:text-white"
                     >
-                      Cancelar
+                      {formLocked ? "Fechar" : "Cancelar"}
                     </button>
-                    <button
-                      type="submit"
-                      data-snd="select"
-                      disabled={
-                        isCreating
-                          ? !newEvent.title?.trim() ||
-                            !newEvent.startTime ||
-                            !newEvent.endTime
-                          : !selectedEvent?.title?.trim()
-                      }
-                      className="rounded-xl bg-white px-5 py-2 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
-                    >
-                      {isCreating ? "Criar" : "Salvar"}
-                    </button>
+                    {formLocked ? null : (
+                      <button
+                        type="submit"
+                        data-snd="select"
+                        disabled={
+                          isCreating
+                            ? !newEvent.title?.trim() ||
+                              !newEvent.startTime ||
+                              !newEvent.endTime
+                            : !selectedEvent?.title?.trim()
+                        }
+                        className="rounded-xl bg-white px-5 py-2 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
+                      >
+                        {isCreating ? "Criar" : "Salvar"}
+                      </button>
+                    )}
                   </div>
                 </form>
               )}
@@ -944,15 +958,19 @@ function FiltersMenu({
       <DropdownMenuTrigger asChild>
         <button
           type="button"
-          className="inline-flex h-12 shrink-0 items-center gap-2 rounded-2xl border border-white/10 bg-transparent px-4 text-sm text-white/60 transition hover:bg-white/[0.04] hover:text-white"
+          className="shrink-0 rounded-2xl border-0 bg-transparent p-0 text-white/70 outline-none transition hover:text-white"
         >
-          <Filter className="h-4 w-4" />
-          Filtros
-          {activeFilterCount > 0 && (
-            <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs font-medium text-white">
-              {activeFilterCount}
+          <LiquidGlass className="rounded-2xl">
+            <span className="inline-flex h-12 items-center gap-2 px-4 text-sm">
+              <Filter className="h-4 w-4" />
+              Filtros
+              {activeFilterCount > 0 && (
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs font-medium text-white">
+                  {activeFilterCount}
+                </span>
+              )}
             </span>
-          )}
+          </LiquidGlass>
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -1547,6 +1565,11 @@ function DayView({
   );
 }
 
+function sentenceCase(value: string) {
+  if (!value) return value;
+  return value.charAt(0).toUpperCase() + value.slice(1);
+}
+
 function ListView({
   events,
   onEventClick,
@@ -1581,8 +1604,8 @@ function ListView({
     <div className="space-y-6">
       {Object.entries(groupedEvents).map(([date, dateEvents]) => (
         <div key={date} className="space-y-3">
-          <h3 className="text-xs font-semibold capitalize text-white/35 sm:text-sm">
-            {date}
+          <h3 className="text-xs font-semibold text-white/55 sm:text-sm">
+            {sentenceCase(date)}
           </h3>
           <div className="space-y-2">
             {dateEvents.map((event) => {

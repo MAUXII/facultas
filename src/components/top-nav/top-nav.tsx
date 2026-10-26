@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   DoorOpen,
   Compass,
@@ -28,15 +28,13 @@ import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import { useTranslations } from "next-intl";
-import {
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-} from "@/components/ui/popover";
+import { GlassMenu, GlassMenuItem } from "@/components/ui/glass-menu";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { useCommunities } from "@/app/communities-context";
 import { cn } from "@/lib/utils";
 
 const ICON_STROKE = 1.5;
+const ACCOUNT_MENU_WIDTH = 220;
 
 function AccountMenu({
   onJoin,
@@ -57,40 +55,26 @@ function AccountMenu({
   profileLabel: string;
   qrLabel: string;
 }) {
+  const iconClass = "size-4 shrink-0 opacity-70";
+
   return (
     <>
-      <button
-        type="button"
-        onClick={onProfile}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-white transition hover:bg-white/5"
-      >
-        <User className="h-4 w-4 shrink-0 text-white/55" strokeWidth={1.5} />
+      <GlassMenuItem onClick={onProfile}>
+        <User className={iconClass} strokeWidth={1.5} aria-hidden />
         {profileLabel}
-      </button>
-      <button
-        type="button"
-        onClick={onQr}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-white transition hover:bg-white/5"
-      >
-        <QrCode className="h-4 w-4 shrink-0 text-white/55" strokeWidth={1.5} />
+      </GlassMenuItem>
+      <GlassMenuItem onClick={onQr}>
+        <QrCode className={iconClass} strokeWidth={1.5} aria-hidden />
         {qrLabel}
-      </button>
-      <button
-        type="button"
-        onClick={onJoin}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-white transition hover:bg-white/5"
-      >
-        <KeyRound className="h-4 w-4 shrink-0 text-white/55" strokeWidth={1.5} />
+      </GlassMenuItem>
+      <GlassMenuItem onClick={onJoin}>
+        <KeyRound className={iconClass} strokeWidth={1.5} aria-hidden />
         {joinLabel}
-      </button>
-      <button
-        type="button"
-        onClick={onSettings}
-        className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-left text-sm text-white transition hover:bg-white/5"
-      >
-        <Settings className="h-4 w-4 shrink-0 text-white/55" strokeWidth={1.5} />
+      </GlassMenuItem>
+      <GlassMenuItem onClick={onSettings}>
+        <Settings className={iconClass} strokeWidth={1.5} aria-hidden />
         {settingsLabel}
-      </button>
+      </GlassMenuItem>
     </>
   );
 }
@@ -117,8 +101,10 @@ export function TopNav() {
   const [qrOpen, setQrOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [accountPos, setAccountPos] = useState({ x: 0, y: 0 });
   const [timeLabel, setTimeLabel] = useState("");
   const [scrolled, setScrolled] = useState(false);
+  const accountTriggerRef = useRef<HTMLButtonElement>(null);
 
   const navLinks = [
     { href: routes.communities, label: t("communities"), icon: DoorOpen },
@@ -189,6 +175,8 @@ export function TopNav() {
     };
   }, [wideNav]);
 
+  const closeAccount = useCallback(() => setAccountOpen(false), []);
+
   if (isAuthPath || loading) {
     return null;
   }
@@ -220,6 +208,25 @@ export function TopNav() {
   const iconClass = "h-4 w-4";
   const avatar =
     user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
+
+  const openAccountMenu = () => {
+    playRuixenClick("soft");
+    const r = accountTriggerRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setAccountPos({
+      x: Math.max(8, r.right - ACCOUNT_MENU_WIDTH),
+      y: r.bottom + 8,
+    });
+    setAccountOpen(true);
+  };
+
+  const toggleAccountMenu = () => {
+    if (accountOpen) {
+      closeAccount();
+      return;
+    }
+    openAccountMenu();
+  };
 
   const openJoin = () => {
     playRuixenClick("soft");
@@ -315,45 +322,45 @@ export function TopNav() {
                   >
                     <Bell className={iconClass} strokeWidth={ICON_STROKE} />
                   </button>
-                  <Popover open={accountOpen} onOpenChange={setAccountOpen}>
-                    <PopoverTrigger asChild>
-                      <button
-                        type="button"
-                        onClick={() => playRuixenClick("soft")}
-                        className="hidden overflow-hidden rounded-full md:inline-flex"
-                        aria-label={t("profile")}
-                      >
-                        {avatar ? (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            src={avatar}
-                            alt=""
-                            className="h-6 w-6 rounded-full object-cover"
-                          />
-                        ) : (
-                          <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                            <User className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
-                          </span>
-                        )}
-                      </button>
-                    </PopoverTrigger>
-                    <PopoverContent
-                      align="end"
-                      sideOffset={8}
-                      className="w-[min(100vw-2rem,240px)] overflow-hidden p-1.5"
-                    >
-                      <AccountMenu
-                        onJoin={openJoin}
-                        onSettings={openSettings}
-                        onProfile={openProfile}
-                        onQr={openQr}
-                        joinLabel={t("joinCode")}
-                        settingsLabel={t("settings")}
-                        profileLabel={t("viewProfile")}
-                        qrLabel={t("myQr")}
+                  <button
+                    ref={accountTriggerRef}
+                    type="button"
+                    data-ff-glass-menu=""
+                    onClick={toggleAccountMenu}
+                    className="hidden overflow-hidden rounded-full md:inline-flex"
+                    aria-label={t("profile")}
+                    aria-haspopup="menu"
+                    aria-expanded={accountOpen}
+                  >
+                    {avatar ? (
+                      <LiveMedia
+                        src={avatar}
+                        className="h-6 w-6 rounded-full object-cover"
                       />
-                    </PopoverContent>
-                  </Popover>
+                    ) : (
+                      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
+                        <User className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
+                      </span>
+                    )}
+                  </button>
+                  <GlassMenu
+                    open={accountOpen}
+                    x={accountPos.x}
+                    y={accountPos.y}
+                    onClose={closeAccount}
+                    width={ACCOUNT_MENU_WIDTH}
+                  >
+                    <AccountMenu
+                      onJoin={openJoin}
+                      onSettings={openSettings}
+                      onProfile={openProfile}
+                      onQr={openQr}
+                      joinLabel={t("joinCode")}
+                      settingsLabel={t("settings")}
+                      profileLabel={t("viewProfile")}
+                      qrLabel={t("myQr")}
+                    />
+                  </GlassMenu>
                 </>
               ) : (
                 <SoundLink

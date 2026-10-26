@@ -32,7 +32,9 @@ import { routes } from "@/lib/routes";
 import type { Community } from "@/types";
 import { Camera } from "lucide-react";
 import { RichDescriptionEditor } from "@/components/rich-description/rich-description";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { isEmptyRichText } from "@/lib/sanitize-html";
+import { mentionsMissingLinkAccess } from "@/lib/link-access";
 
 type Props = {
   open: boolean;
@@ -58,6 +60,7 @@ export function EditCommunityDialog({
   const [coverPreview, setCoverPreview] = useState(community.cover_url);
   const [coverFile, setCoverFile] = useState<File | null>(null);
   const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState("");
   const [removing, setRemoving] = useState(false);
   const [confirmRemove, setConfirmRemove] = useState(false);
   const [confirmName, setConfirmName] = useState("");
@@ -80,6 +83,9 @@ export function EditCommunityDialog({
   const membrosMateriais = formSettings.membrosMateriais;
   const setMembrosMateriais = (next: boolean) =>
     setFormSettings((current) => ({ ...current, membrosMateriais: next }));
+  const peloLink = formSettings.peloLink;
+  const setPeloLink = (next: boolean) =>
+    setFormSettings((current) => ({ ...current, peloLink: next }));
 
   useEffect(() => {
     if (!open) return;
@@ -112,6 +118,7 @@ export function EditCommunityDialog({
     }
 
     setSaving(true);
+    setSaveError("");
     playRuixenClick("action");
     try {
       let capaUrl: string | undefined;
@@ -146,11 +153,15 @@ export function EditCommunityDialog({
       toast({ title: "Comunidade atualizada" });
     } catch (err) {
       console.error(err);
+      const description = mentionsMissingLinkAccess(err)
+        ? "Rode a migration 015 no Supabase para liberar o acesso pelo link."
+        : err instanceof SettingsError
+          ? "Turma e monitoria precisam de instituição."
+          : "Não deu para salvar.";
+      setSaveError(description);
       toast({
-        title:
-          err instanceof SettingsError
-            ? "Turma e monitoria precisam de instituição"
-            : "Não deu para salvar",
+        title: "Não deu para salvar",
+        description,
         variant: "destructive",
       });
     } finally {
@@ -232,10 +243,8 @@ export function EditCommunityDialog({
                 className="group relative aspect-square w-full overflow-hidden rounded-2xl bg-white/5"
               >
                 {coverPreview ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <LiveMedia
                     src={coverPreview}
-                    alt=""
                     className="h-full w-full object-cover"
                   />
                 ) : (
@@ -321,6 +330,25 @@ export function EditCommunityDialog({
                       onCheckedChange={setMembrosMateriais}
                     />
                   </label>
+                  <label className="flex items-start justify-between gap-4">
+                    <span>
+                      <span className="block text-sm text-white/70">
+                        Quem tem o link vê e assina
+                      </span>
+                      <span className="mt-1 block text-xs text-white/45">
+                        Sem conta: vê avisos, materiais e a grade, e copia o
+                        calendário. Não publica nem edita.
+                      </span>
+                    </span>
+                    <Switch
+                      checked={peloLink}
+                      onCheckedChange={setPeloLink}
+                      aria-label="Quem tem o link vê e assina"
+                    />
+                  </label>
+                  {saveError ? (
+                    <p className="text-sm text-white/70">{saveError}</p>
+                  ) : null}
                 </div>
 
                 {canDelete ? (

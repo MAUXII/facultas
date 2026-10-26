@@ -61,6 +61,16 @@ describe("Hub writers", () => {
     expect(port.posts[0].body).toBe("Prova na quarta");
   });
 
+  test("mandar aviso para o calendário sem data é inválido", async () => {
+    const port = memoryPort();
+    await expect(
+      createHub(port).addAviso(TURMA, ADMIN, "Prova", {
+        pushToCalendar: true,
+      }),
+    ).rejects.toMatchObject({ code: "invalid" });
+    expect(port.posts).toHaveLength(0);
+  });
+
   test("member cannot publish an aviso when writers are admins", async () => {
     const port = memoryPort();
     await expect(

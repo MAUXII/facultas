@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/client";
+import { buscarSalaPeloLink } from "@/lib/link-access-supabase";
 import type { Community } from "@/types";
-import { isUuid } from "@/lib/public-id";
+import { isPublicId, isUuid } from "@/lib/public-id";
 
 export async function listarMinhasComunidades(
   userId: string
@@ -51,7 +52,9 @@ export async function buscarComunidade(
     .eq(column, id)
     .maybeSingle();
   if (error) throw error;
-  return data as Community | null;
+  if (data) return data as Community;
+  if (!isPublicId(id)) return null;
+  return buscarSalaPeloLink(id);
 }
 
 export async function entrarNaComunidade(

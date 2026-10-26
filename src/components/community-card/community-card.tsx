@@ -28,11 +28,13 @@ import { routes } from "@/lib/routes";
 import { createCommunityWrite } from "@/lib/community-write";
 import { supabaseCommunityWritePort } from "@/lib/community-write-supabase";
 import { coverIndex } from "@/lib/cover-tint";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { labelKind } from "@/lib/community";
 import type { Community } from "@/types";
 
-function membersLabel(count: number | undefined) {
-  if (!count) return "Nenhum membro";
+function membersLabel(count: number | null | undefined) {
+  if (count == null) return null;
+  if (count === 0) return "Nenhum membro";
   if (count === 1) return "1 membro";
   return `${count} membros`;
 }
@@ -125,10 +127,8 @@ export function CommunityCard({ community }: { community: Community }) {
               }`}
             >
               {localCover ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <LiveMedia
                   src={localCover}
-                  alt=""
                   className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.04]"
                 />
               ) : (
@@ -144,12 +144,14 @@ export function CommunityCard({ community }: { community: Community }) {
               <p className="mt-1 truncate text-[13px] text-white/40">
                 {labelKind(community.kind)}
               </p>
-              <p className="mt-1 flex items-center gap-1.5 text-[13px] text-white/35">
-                <Users className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-                <span className="truncate">
-                  {membersLabel(community.members_count)}
-                </span>
-              </p>
+              {membersLabel(community.members_count) ? (
+                <p className="mt-1 flex items-center gap-1.5 text-[13px] text-white/55">
+                  <Users className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
+                  <span className="truncate">
+                    {membersLabel(community.members_count)}
+                  </span>
+                </p>
+              ) : null}
             </div>
           </SoundLink>
         </ContextMenuTrigger>

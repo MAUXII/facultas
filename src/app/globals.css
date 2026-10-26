@@ -305,6 +305,15 @@ body::-webkit-scrollbar {
   margin: 0.4rem 0;
 }
 
+/* Enter vazio no editor vira <p></p> — sem isso a linha some no Sobre */
+.ff-prose p:empty::before {
+  content: "\00a0";
+}
+
+.ff-prose p:has(> br:only-child) {
+  min-height: 1.65em;
+}
+
 .ff-prose blockquote {
   border-left: 2px solid rgba(255, 255, 255, 0.2);
   color: rgba(255, 255, 255, 0.45);

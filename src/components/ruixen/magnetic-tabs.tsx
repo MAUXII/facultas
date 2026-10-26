@@ -169,8 +169,7 @@ export function MagneticTabs({
                   setHovered(item.value);
                 }}
                 className={cn(
-                  "relative z-[1] cursor-pointer whitespace-nowrap rounded-md border-none bg-transparent px-5 py-[11px] font-medium leading-none transition-colors duration-150",
-                  "text-sm",
+                  "relative z-[1] cursor-pointer whitespace-nowrap rounded-md border-none bg-transparent px-4 py-[11px] text-sm font-medium leading-none transition-colors duration-150",
                   active === item.value ? "text-white/90" : "text-white/45",
                 )}
               >

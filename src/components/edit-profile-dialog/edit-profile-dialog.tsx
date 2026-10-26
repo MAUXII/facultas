@@ -14,6 +14,7 @@ import { slugifyUsername } from "@/lib/username";
 import { toast } from "@/components/ui/use-toast";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import { Camera } from "lucide-react";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { useTranslations } from "next-intl";
 
 type Props = {
@@ -186,10 +187,8 @@ export function EditProfileDialog({
               className="group relative h-[112px] w-[112px] overflow-hidden rounded-2xl bg-white/10 ring-1 ring-white/10"
             >
               {avatarPreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <LiveMedia
                   src={avatarPreview}
-                  alt=""
                   className="h-full w-full object-cover"
                 />
               ) : (

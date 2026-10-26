@@ -6,7 +6,6 @@ import { ptBR } from "date-fns/locale";
 import {
   AlignLeft,
   BookOpen,
-  CalendarDays,
   Link2,
   Megaphone,
   Users,
@@ -32,8 +31,15 @@ import type { Access } from "@/lib/access";
 import { toast } from "@/components/ui/use-toast";
 import { RichDescriptionView } from "@/components/rich-description/rich-description";
 import { isEmptyRichText } from "@/lib/sanitize-html";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { GradePanel } from "@/components/community-hub/grade-panel";
+import { SessionPanel } from "@/components/community-hub/session-panel";
 import { GlassCard } from "@/components/ui/glasscn/glass-card";
+import {
+  lerSalaPeloLink,
+  LinkAccessError,
+} from "@/lib/link-access-supabase";
+import type { Aula } from "@/lib/grade";
 
 type TabId = "inicio" | "grade" | "materiais" | "membros" | "sessoes" | "sobre";
 
@@ -59,12 +65,18 @@ export function CommunityHub({
   description,
   kind,
   access,
+  viaLink = false,
+  publicId,
+  institutionId = null,
 }: {
   communityId: string;
-  userId: string;
+  userId: string | null;
   description?: string;
   kind?: string;
   access: Access;
+  viaLink?: boolean;
+  publicId?: string;
+  institutionId?: string | null;
 }) {
   const canPost = access.canWriteAvisos;
   const canAddMaterial = access.canWriteMateriais;
@@ -74,14 +86,30 @@ export function CommunityHub({
   const [resources, setResources] = useState<ResourceRow[]>([]);
   const [members, setMembers] = useState<MemberRow[]>([]);
   const [sessions, setSessions] = useState<SessionRow[]>([]);
+  const [linkAulas, setLinkAulas] = useState<Aula[]>([]);
+  const [linkError, setLinkError] = useState("");
   const [loading, setLoading] = useState(true);
   const [draft, setDraft] = useState("");
+  const [agendaLocal, setAgendaLocal] = useState("");
+  const [pushCalendar, setPushCalendar] = useState(false);
+  const [publishError, setPublishError] = useState("");
   const [linkTitle, setLinkTitle] = useState("");
   const [linkUrl, setLinkUrl] = useState("");
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
+    setLinkError("");
+    setLoading(true);
     try {
+      if (viaLink && publicId) {
+        const room = await lerSalaPeloLink(publicId);
+        setPosts(room.posts);
+        setResources(room.resources);
+        setMembers(room.members);
+        setLinkAulas(room.aulas);
+        setSessions([]);
+        return;
+      }
       const [p, r, m, s] = await Promise.all([
         listarPosts(communityId),
         listarMateriais(communityId),
@@ -94,6 +122,9 @@ export function CommunityHub({
       setSessions(s);
     } catch (err) {
       console.error(err);
+      if (err instanceof LinkAccessError) {
+        setLinkError("Rode a migration 015 no Supabase para abrir a sala pelo link.");
+      }
     } finally {
       setLoading(false);
     }
@@ -101,21 +132,42 @@ export function CommunityHub({
 
   useEffect(() => {
     void load();
-  }, [communityId]);
+  }, [communityId, viaLink, publicId]);
 
   const publishPost = async () => {
-    if (!draft.trim()) return;
+    if (!userId || !draft.trim()) return;
+    if (pushCalendar && !agendaLocal) return;
+    const agendaDate = agendaLocal ? new Date(agendaLocal) : null;
+    if (agendaDate && Number.isNaN(agendaDate.getTime())) return;
     setSaving(true);
+    setPublishError("");
     playRuixenClick("action");
     try {
-      await createHub(supabaseHubPort()).addAviso(communityId, userId, draft);
+      await createHub(supabaseHubPort()).addAviso(
+        communityId,
+        userId,
+        draft,
+        {
+          at: agendaDate ? agendaDate.toISOString() : null,
+          pushToCalendar: pushCalendar,
+        },
+      );
       setDraft("");
+      setAgendaLocal("");
+      setPushCalendar(false);
       await load();
     } catch (err) {
       console.error(err);
+      const description = hubWriteHint(
+        err,
+        agendaColumnMissing(err)
+          ? "Rode a migration 014 no Supabase para aviso com data."
+          : "Rode a migration 007 se ainda não rodou.",
+      );
+      setPublishError(description);
       toast({
         title: "Não deu para publicar",
-        description: hubWriteHint(err, "Rode a migration 007 se ainda não rodou."),
+        description,
         variant: "destructive",
       });
     } finally {
@@ -124,7 +176,7 @@ export function CommunityHub({
   };
 
   const addLink = async () => {
-    if (!linkTitle.trim() || !linkUrl.trim()) return;
+    if (!userId || !linkTitle.trim() || !linkUrl.trim()) return;
     setSaving(true);
     playRuixenClick("action");
     try {
@@ -152,6 +204,15 @@ export function CommunityHub({
 
   return (
     <div className="flex flex-col gap-6">
+      {viaLink ? (
+        <p className="text-sm text-white/60">
+          Você está pelo link. Dá para ver a sala e assinar o calendário. Para
+          publicar, entre com uma conta.
+        </p>
+      ) : null}
+      {linkError ? (
+        <p className="text-sm text-white/70">{linkError}</p>
+      ) : null}
       <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-white/[0.06]">
         {tabs.map((item) => (
           <button
@@ -184,19 +245,52 @@ export function CommunityHub({
                 value={draft}
                 onChange={(e) => setDraft(e.target.value)}
                 rows={3}
-                placeholder="Escrever um aviso para a turma…"
+                placeholder={
+                  kind === "turma"
+                    ? "Escrever um aviso para a turma…"
+                    : "Escrever um aviso…"
+                }
                 className="w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/30"
               />
-              <div className="mt-3 flex justify-end">
-                <button
-                  type="button"
-                  disabled={saving || !draft.trim()}
-                  onClick={() => void publishPost()}
-                  className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
-                >
-                  Publicar
-                </button>
+              <div className="mt-3 flex flex-col gap-3">
+                <input
+                  type="datetime-local"
+                  value={agendaLocal}
+                  onChange={(e) => setAgendaLocal(e.target.value)}
+                  aria-label="Data do aviso"
+                  style={{ colorScheme: "dark" }}
+                  className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm text-white outline-none sm:w-fit"
+                />
+                <div className="flex items-center justify-between gap-3">
+                  <label className="flex items-center gap-2 text-sm text-white/55">
+                    <input
+                      type="checkbox"
+                      checked={pushCalendar}
+                      onChange={(e) => setPushCalendar(e.target.checked)}
+                      className="size-4 accent-white"
+                    />
+                    Mandar para o calendário
+                  </label>
+                  <button
+                    type="button"
+                    disabled={
+                      saving || !draft.trim() || (pushCalendar && !agendaLocal)
+                    }
+                    onClick={() => void publishPost()}
+                    className="shrink-0 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
+                  >
+                    Publicar
+                  </button>
+                </div>
               </div>
+              {pushCalendar && !agendaLocal ? (
+                <p className="mt-2 text-xs text-white/45">
+                  Para mandar para o calendário, escolhe a data.
+                </p>
+              ) : null}
+              {publishError ? (
+                <p className="mt-2 text-xs text-white/70">{publishError}</p>
+              ) : null}
             </GlassCard>
           ) : null}
 
@@ -206,7 +300,9 @@ export function CommunityHub({
               title="Nenhum aviso ainda"
               text={
                 canPost
-                  ? "Avisos, combinados e recados da turma ficam aqui."
+                  ? kind === "turma"
+                    ? "Avisos, combinados e recados da turma ficam aqui."
+                    : "Avisos e recados ficam aqui."
                   : "Só o representante publica avisos nesta comunidade."
               }
             />
@@ -228,6 +324,14 @@ export function CommunityHub({
                 <p className="mt-3 whitespace-pre-wrap text-sm leading-relaxed text-white/85">
                   {post.body}
                 </p>
+                {post.agenda_at ? (
+                  <p className="mt-2 text-xs text-white/45">
+                    {format(new Date(post.agenda_at), "EEE, d MMM · HH:mm", {
+                      locale: ptBR,
+                    })}
+                    {post.push_to_calendar ? " · na agenda dos membros" : ""}
+                  </p>
+                ) : null}
               </GlassCard>
             ))
           )}
@@ -237,8 +341,9 @@ export function CommunityHub({
       {!loading && tab === "grade" && kind === "turma" && (
         <GradePanel
           communityId={communityId}
-          userId={userId}
-          canEdit={access.canEditGrade}
+          userId={userId ?? ""}
+          canEdit={access.canEditGrade && !viaLink}
+          fixedAulas={viaLink ? linkAulas : undefined}
         />
       )}
 
@@ -334,30 +439,15 @@ export function CommunityHub({
       )}
 
       {!loading && tab === "sessoes" && (
-        <div className="flex flex-col gap-3">
-          {sessions.length === 0 ? (
-            <Empty
-              icon={CalendarDays}
-              title="Nenhuma sessão"
-              text="Sessão de presença ainda não está nesta versão. O hub agora é avisos, materiais e gente."
-            />
-          ) : (
-            sessions.map((session) => (
-              <GlassCard
-                key={session.id}
-                className="gap-0 px-4 py-3.5 text-white"
-              >
-                <p className="text-sm text-white">{session.title}</p>
-                <p className="mt-1 text-xs text-white/40">
-                  {format(new Date(session.starts_at), "d MMM · HH:mm", {
-                    locale: ptBR,
-                  })}
-                  {session.location ? ` · ${session.location}` : ""}
-                </p>
-              </GlassCard>
-            ))
-          )}
-        </div>
+        <SessionPanel
+          communityId={communityId}
+          userId={userId}
+          institutionId={institutionId}
+          role={access.effective}
+          viaLink={viaLink}
+          sessions={sessions}
+          onChanged={() => void load()}
+        />
       )}
 
       {!loading && tab === "sobre" && (
@@ -381,13 +471,22 @@ function Avatar({ name, src }: { name: string; src: string | null }) {
   return (
     <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-xs font-semibold text-white/80">
       {src ? (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} alt="" className="h-full w-full object-cover" />
+        <LiveMedia src={src} className="h-full w-full object-cover" />
       ) : (
         name.charAt(0).toUpperCase()
       )}
     </span>
   );
+}
+
+function agendaColumnMissing(err: unknown) {
+  const message =
+    err instanceof Error
+      ? err.message
+      : typeof err === "object" && err && "message" in err
+        ? String((err as { message?: unknown }).message ?? "")
+        : "";
+  return message.includes("agenda_at") || message.includes("push_to_calendar");
 }
 
 function hubWriteHint(err: unknown, fallback: string) {

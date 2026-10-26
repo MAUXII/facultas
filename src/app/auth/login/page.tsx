@@ -176,8 +176,8 @@ export default function Login() {
                 {busy ? "Entrando…" : "Continuar"}
               </button>
 
-              <p className="text-center text-sm text-white/35">
-                Nao tem conta?{" "}
+              <p className="text-center text-sm text-white/60">
+                Não tem conta?{" "}
                 <Link
                   href={signupHref(next)}
                   className="font-medium text-white/70 transition hover:text-white"

@@ -8,7 +8,7 @@ import { COMMUNITY_KINDS, type CommunityKind } from "@/lib/community";
 import type { Community } from "@/types";
 import { DiscoverCard } from "@/components/discover-card/discover-card";
 import { CommunityPreviewDrawer } from "@/components/community-preview-drawer/community-preview-drawer";
-import { cn } from "@/lib/utils";
+import { MagneticTabs } from "@/components/ruixen/magnetic-tabs";
 
 type Filter = "all" | CommunityKind;
 
@@ -56,20 +56,26 @@ export default function DiscoverPage() {
           </p>
         </header>
 
-        <div className="flex flex-wrap gap-x-6 gap-y-2">
-          <FilterChip
-            active={filter === "all"}
-            onClick={() => setFilter("all")}
-            label="Tudo"
+        <div className="w-full min-w-0 overflow-x-auto">
+          <MagneticTabs
+            defaultValue={filter}
+            items={[
+              { value: "all", label: "Tudo" },
+              ...COMMUNITY_KINDS.map((kind) => ({
+                value: kind.id,
+                label: kind.label,
+              })),
+            ]}
+            onChange={(value) => {
+              if (value === "all") {
+                setFilter("all");
+                return;
+              }
+              const kind = COMMUNITY_KINDS.find((item) => item.id === value);
+              if (kind) setFilter(kind.id);
+            }}
+            className="w-fit"
           />
-          {COMMUNITY_KINDS.map((kind) => (
-            <FilterChip
-              key={kind.id}
-              active={filter === kind.id}
-              onClick={() => setFilter(kind.id)}
-              label={kind.label}
-            />
-          ))}
         </div>
 
         {shown.length === 0 ? (
@@ -97,28 +103,5 @@ export default function DiscoverPage() {
         onExitComplete={() => setPreview(null)}
       />
     </AppShell>
-  );
-}
-
-function FilterChip({
-  active,
-  label,
-  onClick,
-}: {
-  active: boolean;
-  label: string;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={cn(
-        "text-[12px] tracking-wide transition-colors",
-        active ? "text-white" : "text-white/35 hover:text-white/70",
-      )}
-    >
-      {label}
-    </button>
   );
 }

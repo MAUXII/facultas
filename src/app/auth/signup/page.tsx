@@ -246,8 +246,8 @@ export default function Cadastro() {
                 {busy ? "Criando…" : "Continuar"}
               </button>
 
-              <p className="text-center text-sm text-white/35">
-                Ja tem conta?{" "}
+              <p className="text-center text-sm text-white/60">
+                Já tem conta?{" "}
                 <Link
                   href={loginHref(next)}
                   className="font-medium text-white/70 transition hover:text-white"

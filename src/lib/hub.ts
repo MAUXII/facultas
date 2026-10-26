@@ -1,3 +1,8 @@
+import {
+  normalizeAvisoAgenda,
+  type AvisoAgendaWrite,
+} from "@/lib/aviso-agenda";
+
 export type WriterPolicy = "admins" | "members";
 export type HubRole = "admin" | "member";
 
@@ -23,6 +28,7 @@ export type HubPort = {
     communityId: string,
     authorId: string,
     body: string,
+    agenda?: AvisoAgendaWrite,
   ): void | Promise<void>;
   insertMaterial(
     communityId: string,
@@ -62,13 +68,20 @@ export function createHub(port: HubPort) {
   }
 
   return {
-    async addAviso(communityId: string, actorId: string, body: string) {
+    async addAviso(
+      communityId: string,
+      actorId: string,
+      body: string,
+      agenda?: { at?: string | null; pushToCalendar?: boolean } | null,
+    ) {
       const role = await requireMember(communityId, actorId);
       const settings = await port.settings(communityId);
       if (!canWrite(settings.avisos, role)) throw new HubError("forbidden");
       const text = body.trim();
       if (!text) throw new HubError("invalid");
-      await port.insertPost(communityId, actorId, text);
+      const normalized = normalizeAvisoAgenda(agenda);
+      if (!normalized.ok) throw new HubError("invalid");
+      await port.insertPost(communityId, actorId, text, normalized.value);
     },
     async addMaterial(
       communityId: string,

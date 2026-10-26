@@ -7,6 +7,7 @@ import { routes } from "@/lib/routes";
 import { coverIndex } from "@/lib/cover-tint";
 import { labelKind } from "@/lib/community";
 import { getInstituicao } from "@/lib/institutions";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { cn } from "@/lib/utils";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import type { Community } from "@/types";
@@ -39,10 +40,8 @@ export function CommunityRow({
         }`}
       >
         {community.cover_url ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
+          <LiveMedia
             src={community.cover_url}
-            alt=""
             className="h-full w-full object-cover"
           />
         ) : (
@@ -52,7 +51,7 @@ export function CommunityRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <p className="truncate text-[12px] capitalize text-white/40">{when}</p>
+        <p className="truncate text-[12px] text-white/55">{when}</p>
         <p className="mt-0.5 truncate text-[15px] font-semibold leading-snug tracking-tight text-white">
           {community.name}
         </p>

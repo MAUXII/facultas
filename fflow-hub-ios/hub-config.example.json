@@ -1,0 +1,6 @@
+{
+  "mode": "live",
+  "supabaseUrl": "https://SEU_PROJECT.supabase.co",
+  "supabaseAnonKey": "sua_anon_key",
+  "communityId": "uuid-ou-public_id-da-comunidade"
+}

@@ -7,71 +7,13 @@ import { AppShell } from "@/components/app-shell/app-shell";
 import { HubAtmosphere } from "@/components/community-hub/hub-atmosphere";
 import { CommunityRow } from "@/components/community-row/community-row";
 import { EditProfileDialog } from "@/components/edit-profile-dialog/edit-profile-dialog";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
-import { MagneticTabs } from "@/components/ruixen/magnetic-tabs";
 import { useUsuario } from "@/hooks/useUsuario";
 import { useCommunities } from "@/app/communities-context";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { useTranslations } from "next-intl";
 import { routes } from "@/lib/routes";
-
-function ProfileOverview({
-  displayName,
-  username,
-  communityCount,
-}: {
-  displayName: string;
-  username: string | null;
-  communityCount: number;
-}) {
-  const t = useTranslations("profile");
-
-  return (
-    <div className="flex flex-col gap-10">
-      <section>
-        <h2 className="mb-4 text-sm font-medium text-white/70">{t("title")}</h2>
-        <div className="flex flex-col gap-3 text-[15px] font-light leading-relaxed text-white/60">
-          <p>
-            <span className="text-white/35">Nome · </span>
-            {displayName}
-          </p>
-          {username ? (
-            <p>
-              <span className="text-white/35">Username · </span>@{username}
-            </p>
-          ) : (
-            <p className="text-white/30">Sem username ainda.</p>
-          )}
-        </div>
-      </section>
-
-      <section>
-        <h2 className="mb-4 text-sm font-medium text-white/70">
-          {t("communities")}
-        </h2>
-        {communityCount === 0 ? (
-          <div className="py-6">
-            <p className="text-sm text-white/40">{t("communitiesEmpty")}</p>
-            <Link
-              href={routes.discover}
-              data-snd="select"
-              className="mt-4 inline-flex items-center gap-2 rounded-[12px] bg-white px-4 py-2.5 text-sm font-medium text-black transition hover:bg-white/92"
-            >
-              <Users className="h-4 w-4" strokeWidth={1.5} />
-              Explorar comunidades
-            </Link>
-          </div>
-        ) : (
-          <p className="text-[15px] font-light text-white/55">
-            Você participa de{" "}
-            <span className="font-medium text-white/80">{communityCount}</span>{" "}
-            {communityCount === 1 ? "comunidade" : "comunidades"}.
-          </p>
-        )}
-      </section>
-    </div>
-  );
-}
 
 function CommunitiesPanel({
   communities,
@@ -156,10 +98,8 @@ export default function ProfilePage() {
             <div className="flex flex-col gap-10">
               <header className="flex flex-col gap-6 sm:flex-row sm:items-end sm:gap-8">
                 {avatarUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <LiveMedia
                     src={avatarUrl}
-                    alt=""
                     className="h-36 w-36 shrink-0 rounded-[18px] object-cover bg-white/10 shadow-[0_24px_48px_-20px_rgba(0,0,0,0.85)] sm:h-44 sm:w-44 sm:rounded-[20px]"
                   />
                 ) : (
@@ -190,31 +130,12 @@ export default function ProfilePage() {
                 </div>
               </header>
 
-              <MagneticTabs
-                defaultValue="profile"
-                size="lg"
-                glass
-                contentBoxed={false}
-                items={[
-                  {
-                    value: "profile",
-                    label: t("title"),
-                    content: (
-                      <ProfileOverview
-                        displayName={displayName}
-                        username={username}
-                        communityCount={communities.length}
-                      />
-                    ),
-                  },
-                  {
-                    value: "communities",
-                    label: t("communities"),
-                    badge: communities.length,
-                    content: <CommunitiesPanel communities={communities} />,
-                  },
-                ]}
-              />
+              <section>
+                <h2 className="mb-4 text-sm font-medium text-white/70">
+                  {t("communities")}
+                </h2>
+                <CommunitiesPanel communities={communities} />
+              </section>
             </div>
           </AppShell>
 

@@ -17,6 +17,7 @@ import { createCommunityWrite, SettingsError } from "@/lib/community-write";
 import { supabaseCommunityWritePort } from "@/lib/community-write-supabase";
 import { uploadComunidadeCover } from "@/lib/cover-upload";
 import { AppShell } from "@/components/app-shell/app-shell";
+import { LiveMedia } from "@/components/live-media/live-media";
 import { useUsuario } from "@/hooks/useUsuario";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { getInstituicao } from "@/lib/institutions";
@@ -49,6 +50,7 @@ import {
   UserPlus,
   Megaphone,
   BookOpen,
+  Link2,
 } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { HubAtmosphere } from "@/components/community-hub/hub-atmosphere";
@@ -97,6 +99,7 @@ export default function CriarComunidadePage() {
   const [membrosMateriais, setMembrosMateriais] = useState(
     GRUPO_DEFAULTS.materiaisWriters === "members",
   );
+  const [peloLink, setPeloLink] = useState(GRUPO_DEFAULTS.peloLink);
   const [kind, setKind] = useState<CommunityKind>(GRUPO_DEFAULTS.kind);
   const [visOpen, setVisOpen] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
@@ -168,6 +171,7 @@ export default function CriarComunidadePage() {
       requerAprovacao,
       membrosAvisos,
       membrosMateriais,
+      peloLink,
     });
     try {
       assertSettings(settings, usuario?.institution_id);
@@ -265,8 +269,7 @@ export default function CriarComunidadePage() {
               }`}
             >
               {coverPreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <LiveMedia
                   src={coverPreview}
                   alt="Prévia da capa"
                   className="h-full w-full object-cover"
@@ -336,10 +339,8 @@ export default function CriarComunidadePage() {
                 <div className="inline-flex items-center gap-2 px-3 py-1.5 text-xs text-white/70">
                   <span className="flex h-5 w-5 shrink-0 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[10px] font-semibold text-white/80">
                     {authorAvatar ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
+                      <LiveMedia
                         src={authorAvatar}
-                        alt=""
                         className="h-full w-full object-cover"
                       />
                     ) : (
@@ -565,6 +566,26 @@ export default function CriarComunidadePage() {
                     checked={membrosMateriais}
                     onCheckedChange={setMembrosMateriais}
                     aria-label="Membros adicionam materiais"
+                  />
+                </div>
+                <div className="mx-4 h-px bg-white/[0.06]" />
+                <div className="flex w-full items-center gap-3 px-4 py-3.5">
+                  <Link2
+                    className="h-4 w-4 shrink-0 text-white/40"
+                    strokeWidth={1.5}
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-sm text-white/80">
+                      Quem tem o link vê e assina
+                    </span>
+                    <span className="mt-0.5 block text-xs text-white/45">
+                      Sem conta. Não publica nem mexe na grade.
+                    </span>
+                  </span>
+                  <Switch
+                    checked={peloLink}
+                    onCheckedChange={setPeloLink}
+                    aria-label="Quem tem o link vê e assina"
                   />
                 </div>
                 {!publica && (

@@ -94,7 +94,7 @@ export default function CommunitiesPage() {
               <SoundLink
                 href={routes.create}
                 sound="action"
-                className="mt-6 inline-flex items-center gap-2 rounded-xl border border-white/15 bg-transparent px-5 py-3 text-sm font-medium text-white transition hover:bg-white/5"
+                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
               >
                 <Plus className="h-4 w-4" strokeWidth={1.5} />
                 Criar grupo

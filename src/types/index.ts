@@ -30,6 +30,7 @@ export type Community = {
   requires_approval: boolean;
   avisos_writers?: "admins" | "members";
   materiais_writers?: "admins" | "members";
+  link_access?: boolean;
   author_id: string;
   created_at: string;
   updated_at: string;

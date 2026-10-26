@@ -1,3 +1,5 @@
+import { LiveMedia } from "@/components/live-media/live-media";
+
 type Person = {
   name: string;
   avatar_url: string | null;
@@ -22,13 +24,14 @@ export function AvatarStack({
           <span
             key={`${person.name}-${index}`}
             className="relative flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-white/10 text-[11px] font-semibold text-white/80 ring-2 ring-[var(--ff-bg)]"
-            style={{ marginLeft: index === 0 ? 0 : -10, zIndex: shown.length - index }}
+            style={{
+              marginLeft: index === 0 ? 0 : -10,
+              zIndex: shown.length - index,
+            }}
           >
             {person.avatar_url ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
+              <LiveMedia
                 src={person.avatar_url}
-                alt=""
                 className="h-full w-full object-cover"
               />
             ) : (

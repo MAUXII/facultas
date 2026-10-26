@@ -58,6 +58,7 @@ export function supabaseCommunityWritePort(profile?: {
           requires_approval: input.settings.requerAprovacao,
           avisos_writers: input.settings.avisosWriters,
           materiais_writers: input.settings.materiaisWriters,
+          link_access: input.settings.peloLink,
           author_id: input.authorId,
         };
 
@@ -75,12 +76,26 @@ export function supabaseCommunityWritePort(profile?: {
         lastError = error;
         if (error?.code === "23505") continue;
 
+        if (error?.message?.includes("link_access")) {
+          const { link_access: _link, ...withoutLink } = body;
+          const retry = await supabase
+            .from("communities")
+            .insert(withoutLink)
+            .select("*")
+            .single();
+          if (!retry.error && retry.data) {
+            await upsertAuthorAdmin(retry.data.id, input.authorId);
+            return retry.data as Community;
+          }
+        }
+
         if (error?.message?.includes("kind") || error?.code === "PGRST204") {
           const {
             kind: _kind,
             avisos_writers: _a,
             materiais_writers: _m,
             public_id: _p,
+            link_access: _link,
             ...legacy
           } = body;
           const retry = await supabase
@@ -112,6 +127,7 @@ export function supabaseCommunityWritePort(profile?: {
         body.requires_approval = patch.settings.requerAprovacao;
         body.avisos_writers = patch.settings.avisosWriters;
         body.materiais_writers = patch.settings.materiaisWriters;
+        body.link_access = patch.settings.peloLink;
       }
 
       const { data, error } = await supabase
@@ -120,6 +136,20 @@ export function supabaseCommunityWritePort(profile?: {
         .eq("id", id)
         .select("*")
         .single();
+      if (error?.message?.includes("link_access")) {
+        delete body.link_access;
+        const retry = await supabase
+          .from("communities")
+          .update(body)
+          .eq("id", id)
+          .select("*")
+          .single();
+        if (retry.error) throw retry.error;
+        if (patch.settings?.peloLink) {
+          throw new Error("link_access");
+        }
+        return retry.data as Community;
+      }
       if (error) throw error;
       return data as Community;
     },

@@ -32,12 +32,15 @@ export function supabaseHubPort(): HubPort {
       return settingsFrom(data || {});
     },
 
-    async insertPost(communityId, authorId, body) {
-      const { error } = await supabase.from("community_posts").insert({
+    async insertPost(communityId, authorId, body, agenda) {
+      const row: Record<string, unknown> = {
         community_id: communityId,
         author_id: authorId,
         body,
-      });
+      };
+      if (agenda?.at) row.agenda_at = agenda.at;
+      if (agenda?.pushToCalendar) row.push_to_calendar = true;
+      const { error } = await supabase.from("community_posts").insert(row);
       if (error) throw error;
     },
 

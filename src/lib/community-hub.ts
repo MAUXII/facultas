@@ -1,3 +1,4 @@
+import { mentionsMissingAgenda } from "@/lib/aviso-agenda";
 import { createClient } from "@/lib/supabase/client";
 
 export type MemberRow = {
@@ -16,6 +17,8 @@ export type PostRow = {
   author_id: string;
   body: string;
   created_at: string;
+  agenda_at: string | null;
+  push_to_calendar: boolean;
   author_name: string;
   author_avatar: string | null;
 };
@@ -90,17 +93,39 @@ export async function listarMembros(communityId: string): Promise<MemberRow[]> {
   });
 }
 
+type PostQueryRow = {
+  id: string;
+  community_id: string;
+  author_id: string;
+  body: string;
+  created_at: string;
+  agenda_at?: string | null;
+  push_to_calendar?: boolean | null;
+};
+
 export async function listarPosts(communityId: string): Promise<PostRow[]> {
   const supabase = createClient();
-  const { data, error } = await supabase
+  const full = await supabase
     .from("community_posts")
-    .select("id, community_id, author_id, body, created_at")
+    .select(
+      "id, community_id, author_id, body, created_at, agenda_at, push_to_calendar",
+    )
     .eq("community_id", communityId)
     .order("created_at", { ascending: false });
 
-  if (error) throw error;
-
-  const rows = data || [];
+  let rows: PostQueryRow[];
+  if (full.error && mentionsMissingAgenda(full.error)) {
+    const fallback = await supabase
+      .from("community_posts")
+      .select("id, community_id, author_id, body, created_at")
+      .eq("community_id", communityId)
+      .order("created_at", { ascending: false });
+    if (fallback.error) throw fallback.error;
+    rows = fallback.data || [];
+  } else {
+    if (full.error) throw full.error;
+    rows = full.data || [];
+  }
   const authorIds = [...new Set(rows.map((row) => row.author_id))];
   const profileById = new Map<string, ProfileEmbed>();
 
@@ -128,6 +153,9 @@ export async function listarPosts(communityId: string): Promise<PostRow[]> {
       author_id: row.author_id,
       body: row.body,
       created_at: row.created_at,
+      agenda_at: "agenda_at" in row ? row.agenda_at ?? null : null,
+      push_to_calendar:
+        "push_to_calendar" in row ? row.push_to_calendar === true : false,
       author_name: profile.name || "Membro",
       author_avatar: profile.avatar_url ?? null,
     };

@@ -1,6 +1,27 @@
 export const WEEKDAYS = ["mon", "tue", "wed", "thu", "fri", "sat"] as const;
 
+/** Dias úteis sempre no esqueleto do admin. Sábado é opcional. */
+export const WEEKDAYS_CORE = ["mon", "tue", "wed", "thu", "fri"] as const;
+
 export type Weekday = (typeof WEEKDAYS)[number];
+
+/**
+ * Dias visíveis na grade:
+ * - admin: seg–sex sempre; sábado só se houver aula
+ * - member: só dias que têm aula (sábado incluso só se tiver)
+ */
+export function visibleGradeDays(
+  aulas: ReadonlyArray<{ dia: Weekday }>,
+  mode: "admin" | "member",
+): Weekday[] {
+  const occupied = new Set(aulas.map((aula) => aula.dia));
+  if (mode === "admin") {
+    const days: Weekday[] = [...WEEKDAYS_CORE];
+    if (occupied.has("sat")) days.push("sat");
+    return days;
+  }
+  return WEEKDAYS.filter((day) => occupied.has(day));
+}
 
 export type AulaDraft = {
   disciplina: string;

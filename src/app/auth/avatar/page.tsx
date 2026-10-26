@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { useToast } from "@/components/ui/use-toast";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
 import { HubAtmosphere } from "@/components/community-hub/hub-atmosphere";
+import { LiveMedia } from "@/components/live-media/live-media";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/lib/supabase/client";
@@ -161,10 +162,8 @@ export default function AvatarStep() {
               aria-label="Adicionar foto de perfil"
             >
               {avatarPreview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
+                <LiveMedia
                   src={avatarPreview}
-                  alt=""
                   className="h-full w-full object-cover"
                 />
               ) : (
