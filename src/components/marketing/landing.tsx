@@ -16,10 +16,10 @@ import {
   moonsScene,
   pigeonScene,
   roadScene,
+  valleyScene,
 } from "./dither/scenes";
 import { DitherStage, type Scene } from "./dither/stage";
 import { DAY, NIGHT } from "./dither/util";
-import { AshHero } from "./ash-hero";
 import { HubMock } from "./mocks";
 import { useLandingMotion } from "./use-landing-motion";
 import "./landing.css";
@@ -159,40 +159,41 @@ export function Landing({ fontClass }: { fontClass?: string }) {
 }
 
 /*
- * Abertura em papel claro: o nome em tinta spray (AshHero) que vira cinza
- * no scroll, com os textos pequenos nos cantos, como num cartaz.
+ * Abertura em papel claro: um vale em dither que some no papel embaixo,
+ * com o texto centrado por cima dessa passagem.
  */
 function Hero() {
-  const ref = useRef<HTMLElement>(null);
   return (
-    <section ref={ref} data-track data-hero className="relative h-[260vh] bg-[#e9e8e3] text-[#151618]">
-      <div className="sticky top-0 h-[100svh] overflow-hidden">
-        <AshHero track={ref} />
-        <h1 className="sr-only">Facultas: sua faculdade, num só lugar.</h1>
-        <div className="lp-in pointer-events-none absolute inset-0" style={at(-1, 0, 0.04, 0.13)}>
-          <div className="lp-mono absolute left-4 top-[12vh] flex gap-4 text-[11px] uppercase leading-relaxed tracking-[0.22em] md:left-[4vw]">
-            <span className="text-[#151618]/45">01<br />08</span>
-            <span>Hub acadêmico<br />código aberto</span>
-          </div>
-          <ul className="lp-mono absolute right-4 top-[12vh] text-right text-[11px] uppercase leading-relaxed tracking-[0.22em] md:right-[4vw]">
-            <li>Comunidades</li>
-            <li>Grade</li>
-            <li>Avisos</li>
-            <li>Calendário</li>
-          </ul>
-          <p className="absolute inset-x-4 top-[calc(40%+8.7vw+3vh)] text-center text-[15px] leading-snug text-[#151618]/80 md:top-[calc(45%+min(8.35vw,18vh)+3vh)] md:text-[17px]">
-            Turma, grade, avisos e calendário,
-            <br />
-            num só lugar.
-          </p>
-          <div className="pointer-events-auto absolute bottom-8 left-4 md:left-[4vw]">
-            <Link href={routes.discover} className="lp-btn lp-btn--ink">
-              Abrir o app <ArrowRight className="h-4 w-4" strokeWidth={2} />
-            </Link>
-          </div>
-          <p className="lp-mono absolute bottom-10 right-4 text-[11px] uppercase tracking-[0.3em] text-[#151618]/50 md:right-[4vw]">
-            Role ↓
-          </p>
+    <section
+      data-hero
+      className="lp-day relative h-[100svh] min-h-[620px] overflow-hidden bg-[#e9edf3] text-[#151618]"
+    >
+      <DitherStage scene={valleyScene} tones={DAY} pixel={2} />
+      <div className="absolute inset-x-0 bottom-[8vh] flex flex-col items-center px-5 text-center">
+        <a
+          href={GITHUB}
+          target="_blank"
+          rel="noreferrer"
+          className="lp-pill lp-rise"
+        >
+          Código aberto · feito por estudantes <ArrowRight className="h-3.5 w-3.5" strokeWidth={2} />
+        </a>
+        <h1
+          style={{ "--i": 1 } as CSSProperties}
+          className="ff-display lp-rise mt-5 text-[clamp(3.1rem,7.4vw,6.8rem)] leading-[0.92] tracking-[-0.01em]"
+        >
+          Sua faculdade,
+          <br />
+          <em>num só lugar.</em>
+        </h1>
+        <p style={{ "--i": 2 } as CSSProperties} className="lp-rise mt-5 max-w-[34rem] text-[16px] leading-relaxed text-[#151618]/65 md:text-[18px]">
+          Comunidade, grade da turma, avisos e calendário de quem estuda junto.
+          Aberto e gratuito.
+        </p>
+        <div style={{ "--i": 3 } as CSSProperties} className="lp-rise mt-7">
+          <Link href={routes.discover} className="lp-btn lp-btn--ink">
+            Abrir o app <ArrowRight className="h-4 w-4" strokeWidth={2} />
+          </Link>
         </div>
       </div>
     </section>

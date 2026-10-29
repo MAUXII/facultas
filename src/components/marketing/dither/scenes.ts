@@ -379,6 +379,26 @@ export const towerScene: Scene = ({ ctx, w, h, t, p }) => {
 };
 
 /** A capa da turma no app: uma aula de verdade, com zoom lento. */
+/**
+ * Abertura: vale com montanhas, rio e campo. A imagem já vem invertida
+ * (branco é tinta) e some em papel na parte de baixo, onde fica o texto.
+ */
+export const valleyScene: Scene = ({ ctx, w, h }) => {
+  const img = image("/marketing/valley.webp");
+  if (!ready(img)) return;
+  const portrait = h > w;
+  const scale = Math.max(w / img.naturalWidth, (h * (portrait ? 0.78 : 1)) / img.naturalHeight);
+  const dw = img.naturalWidth * scale;
+  const dh = img.naturalHeight * scale;
+  // No retrato a imagem corta dos lados; o centro fica na montanha maior.
+  ctx.drawImage(img, (w - dw) * (portrait ? 0.56 : 0.5), 0, dw, dh);
+  const fade = ctx.createLinearGradient(0, h * (portrait ? 0.4 : 0.5), 0, h * (portrait ? 0.66 : 0.8));
+  fade.addColorStop(0, "rgba(0,0,0,0)");
+  fade.addColorStop(1, "rgba(0,0,0,1)");
+  ctx.fillStyle = fade;
+  ctx.fillRect(0, 0, w, h);
+};
+
 export const coverScene: Scene = ({ ctx, w, h, t }) => {
   const img = image("/marketing/lecture.jpg");
   if (!ready(img)) return;
