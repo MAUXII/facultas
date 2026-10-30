@@ -265,6 +265,20 @@ body::-webkit-scrollbar {
   box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.55);
 }
 
+/* Apple-minimal flat surface — no blur / refraction */
+html[data-ff-surface="flat"] .ff-glass {
+  background: var(--ff-surface);
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
+}
+
+.ff-surface-flat {
+  background: var(--ff-surface);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: none;
+}
+
 @keyframes liquid-drift {
   0% {
     background-position: 0% 0%, 100% 100%, 0% 0%;

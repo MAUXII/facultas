@@ -1,8 +1,7 @@
 "use client";
 
-import React, { useState, useCallback, useMemo } from "react";
+import React, { useCallback, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
 import {
   Dialog,
   DialogOverlay,
@@ -12,6 +11,7 @@ import {
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
+  Check,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -22,21 +22,18 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
+import { GlassCard } from "@/components/ui/glasscn/glass-card";
+import {
+  GlassMenu,
+  GlassMenuItem,
+  GlassMenuSep,
+} from "@/components/ui/glass-menu";
 import { MagneticTabs } from "@/components/ruixen/magnetic-tabs";
 import {
   CalendarScheduler,
   schedulerValueToDate,
   type SchedulerStep,
 } from "@/components/ruixen/calendar-scheduler";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 
 export interface Event {
   id: string;
@@ -919,6 +916,8 @@ export function EventManager({
   );
 }
 
+const FILTERS_MENU_WIDTH = 224;
+
 function FiltersMenu({
   colors,
   tags,
@@ -953,102 +952,148 @@ function FiltersMenu({
     text: string;
   };
 }) {
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const [open, setOpen] = useState(false);
+  const [pos, setPos] = useState({ x: 0, y: 0 });
+
+  const close = useCallback(() => setOpen(false), []);
+
+  const toggle = () => {
+    if (open) {
+      close();
+      return;
+    }
+    const r = triggerRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setPos({
+      x: Math.max(8, r.right - FILTERS_MENU_WIDTH),
+      y: r.bottom + 8,
+    });
+    setOpen(true);
+  };
+
+  const toggleIn = (
+    value: string,
+    selected: string[],
+    setSelected: React.Dispatch<React.SetStateAction<string[]>>,
+  ) => {
+    setSelected((prev) =>
+      prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
+    );
+  };
+
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <button
-          type="button"
-          className="shrink-0 rounded-2xl border-0 bg-transparent p-0 text-white/70 outline-none transition hover:text-white"
-        >
-          <LiquidGlass className="rounded-2xl">
-            <span className="inline-flex h-12 items-center gap-2 px-4 text-sm">
-              <Filter className="h-4 w-4" />
-              Filtros
-              {activeFilterCount > 0 && (
-                <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs font-medium text-white">
-                  {activeFilterCount}
-                </span>
-              )}
-            </span>
-          </LiquidGlass>
-        </button>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent
-        align="end"
-        sideOffset={8}
-        collisionPadding={16}
-        className="max-h-[min(280px,45vh)] w-56 overflow-y-auto overscroll-contain"
+    <>
+      <button
+        ref={triggerRef}
+        type="button"
+        data-ff-glass-menu=""
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={toggle}
+        className="shrink-0 rounded-2xl border-0 bg-transparent p-0 text-white/70 outline-none transition hover:text-white"
       >
-        <DropdownMenuLabel>Cores</DropdownMenuLabel>
+        <LiquidGlass className="rounded-2xl">
+          <span className="inline-flex h-12 items-center gap-2 px-4 text-sm">
+            <Filter className="h-4 w-4" />
+            Filtros
+            {activeFilterCount > 0 && (
+              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs font-medium text-white">
+                {activeFilterCount}
+              </span>
+            )}
+          </span>
+        </LiquidGlass>
+      </button>
+
+      <GlassMenu
+        open={open}
+        x={pos.x}
+        y={pos.y}
+        onClose={close}
+        width={FILTERS_MENU_WIDTH}
+        className="max-h-[min(280px,45vh)] overflow-y-auto overscroll-contain"
+      >
+        <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-white/35">
+          Cores
+        </p>
         {colors.map((color) => {
           const resolved = getColorClasses(color.value);
+          const checked = selectedColors.includes(color.value);
           return (
-            <DropdownMenuCheckboxItem
+            <GlassMenuItem
               key={color.value}
-              checked={selectedColors.includes(color.value)}
-              onCheckedChange={(checked) => {
-                setSelectedColors((prev) =>
-                  checked
-                    ? [...prev, color.value]
-                    : prev.filter((c) => c !== color.value),
-                );
-              }}
+              onClick={() =>
+                toggleIn(color.value, selectedColors, setSelectedColors)
+              }
+              hint={
+                checked ? (
+                  <Check className="h-3.5 w-3.5 text-white/70" strokeWidth={2} />
+                ) : null
+              }
             >
-              <div className="flex items-center gap-2">
-                <div className={cn("h-3 w-3 rounded", resolved.bg)} />
-                {resolved.name}
-              </div>
-            </DropdownMenuCheckboxItem>
+              <span className={cn("h-3 w-3 shrink-0 rounded", resolved.bg)} />
+              {resolved.name}
+            </GlassMenuItem>
           );
         })}
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Tags</DropdownMenuLabel>
-        {tags.map((tag) => (
-          <DropdownMenuCheckboxItem
-            key={tag}
-            checked={selectedTags.includes(tag)}
-            onCheckedChange={(checked) => {
-              setSelectedTags((prev) =>
-                checked ? [...prev, tag] : prev.filter((t) => t !== tag),
-              );
-            }}
-          >
-            {tag}
-          </DropdownMenuCheckboxItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuLabel>Categorias</DropdownMenuLabel>
-        {categories.map((category) => (
-          <DropdownMenuCheckboxItem
-            key={category}
-            checked={selectedCategories.includes(category)}
-            onCheckedChange={(checked) => {
-              setSelectedCategories((prev) =>
-                checked
-                  ? [...prev, category]
-                  : prev.filter((c) => c !== category),
-              );
-            }}
-          >
-            {category}
-          </DropdownMenuCheckboxItem>
-        ))}
+        <GlassMenuSep />
+        <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-white/35">
+          Tags
+        </p>
+        {tags.map((tag) => {
+          const checked = selectedTags.includes(tag);
+          return (
+            <GlassMenuItem
+              key={tag}
+              onClick={() => toggleIn(tag, selectedTags, setSelectedTags)}
+              hint={
+                checked ? (
+                  <Check className="h-3.5 w-3.5 text-white/70" strokeWidth={2} />
+                ) : null
+              }
+            >
+              {tag}
+            </GlassMenuItem>
+          );
+        })}
+        <GlassMenuSep />
+        <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-white/35">
+          Categorias
+        </p>
+        {categories.map((category) => {
+          const checked = selectedCategories.includes(category);
+          return (
+            <GlassMenuItem
+              key={category}
+              onClick={() =>
+                toggleIn(category, selectedCategories, setSelectedCategories)
+              }
+              hint={
+                checked ? (
+                  <Check className="h-3.5 w-3.5 text-white/70" strokeWidth={2} />
+                ) : null
+              }
+            >
+              {category}
+            </GlassMenuItem>
+          );
+        })}
         {hasActiveFilters && (
           <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={(e) => {
-                e.preventDefault();
+            <GlassMenuSep />
+            <GlassMenuItem
+              muted
+              onClick={() => {
                 clearFilters();
               }}
-              className="text-white/70 focus:text-white"
             >
               Limpar
-            </DropdownMenuItem>
+            </GlassMenuItem>
           </>
         )}
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </GlassMenu>
+    </>
   );
 }
 
@@ -1088,7 +1133,7 @@ function EventCard({
   };
 
   const popoverCard = (
-    <Card className="gap-0 border border-white/10 bg-[var(--ff-surface)] p-3 text-white shadow-lg shadow-black/20 ring-0">
+    <GlassCard className="gap-0 p-3 text-white shadow-lg shadow-black/20">
       <div className="space-y-2">
         <div className="flex items-start justify-between gap-2">
           <h4 className="text-sm font-semibold leading-tight">{event.title}</h4>
@@ -1121,7 +1166,7 @@ function EventCard({
           ))}
         </div>
       </div>
-    </Card>
+    </GlassCard>
   );
 
   if (variant === "compact") {
@@ -1217,7 +1262,7 @@ function EventCard({
       </div>
       {isHovered && (
         <div className="absolute left-0 top-full z-50 mt-1 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
-          <Card className="gap-0 border border-white/10 bg-[var(--ff-surface)] p-4 text-white shadow-lg shadow-black/20 ring-0">
+          <GlassCard className="gap-0 p-4 text-white shadow-lg shadow-black/20">
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <h4 className="font-semibold leading-tight">{event.title}</h4>
@@ -1255,7 +1300,7 @@ function EventCard({
                 </div>
               </div>
             </div>
-          </Card>
+          </GlassCard>
         </div>
       )}
     </div>

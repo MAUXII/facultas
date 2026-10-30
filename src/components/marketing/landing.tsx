@@ -10,17 +10,14 @@ import { cn } from "@/lib/utils";
 import {
   birdsOverlay,
   prologueScene,
-  coverScene,
   crabScene,
   towerScene,
   moonsScene,
   pigeonScene,
-  roadScene,
   valleyScene,
 } from "./dither/scenes";
 import { DitherStage, type Scene } from "./dither/stage";
 import { DAY, NIGHT } from "./dither/util";
-import { HubMock } from "./mocks";
 import { useLandingMotion } from "./use-landing-motion";
 import "./landing.css";
 
@@ -28,7 +25,7 @@ const GITHUB = "https://github.com/MAUXII/facultas";
 const OVERLAY = ["transparent", ...NIGHT.slice(1)] as const;
 const WEEK = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"] as const;
 const PROLOGUE =
-  "O Facultas começou num grupo de WhatsApp lotado: aviso perdido, prova descoberta na véspera, PDF que ninguém achava. Virou um lugar aberto, onde cada turma guarda o que importa e cada estudante recebe as próprias datas. Feito por estudantes, com o código à vista.";
+  "O Facultas começou num grupo de WhatsApp lotado: aviso perdido, prova descoberta na véspera, PDF que ninguém achava. Virou um lugar aberto, onde cada turma guarda o que importa e cada estudante recebe as próprias datas. Feito por estudantes, com o código aberto.";
 
 export function Landing({ fontClass }: { fontClass?: string }) {
   const rootRef = useRef<HTMLElement>(null);
@@ -47,12 +44,15 @@ export function Landing({ fontClass }: { fontClass?: string }) {
 
       <Hero />
 
-      <Track scene={prologueScene} tones={NIGHT} height="h-[230vh]" curtain>
-        <div className="absolute inset-x-0 top-1/2 mx-auto max-w-[56rem] -translate-y-1/2 px-6 text-center">
-          <p className="lp-mono text-[11px] uppercase tracking-[0.4em] text-white/55">
-            ✦ ✦ ✦ &nbsp; Prólogo &nbsp; ✦ ✦ ✦
-          </p>
-          <p className="ff-display mt-8 text-[clamp(1.9rem,4vw,3.6rem)] leading-[1.08]">
+      <Track
+        scene={prologueScene}
+        tones={NIGHT}
+        height="h-[230vh]"
+        curtain
+        floatCtaStart
+      >
+        <div className="absolute inset-x-0 top-1/2 mx-auto max-w-[42rem] -translate-y-1/2 px-6 text-center md:max-w-[48rem]">
+          <p className="ff-display text-[clamp(2.35rem,5.2vw,4.4rem)] leading-[1.05] tracking-[-0.02em]">
             {PROLOGUE.split(" ").map((word, i, all) => (
               <span
                 key={i}
@@ -116,25 +116,11 @@ export function Landing({ fontClass }: { fontClass?: string }) {
         </Caption>
       </Track>
 
-      <section className="relative px-4 pb-28 pt-16 md:px-5 md:pb-40 md:pt-20">
-        <div className="mx-auto max-w-[1120px]">
-          <p className="lp-mono text-[11px] uppercase tracking-[0.3em] text-white/45">
-            04 · Por dentro
-          </p>
-          <h2 data-reveal className="ff-display mt-6 text-[clamp(3.2rem,8vw,7rem)] leading-[0.92]">
-            Tudo isso, <em>num app.</em>
-          </h2>
-          <div data-reveal className="mx-auto mt-16 max-w-[920px]">
-            <HubMock cover={<DitherStage scene={coverScene} tones={NIGHT} pixel={2} />} />
-          </div>
-        </div>
-      </section>
-
       <section className="relative h-[92svh] min-h-[560px] overflow-hidden border-t border-white/[0.06]">
         <DitherStage scene={crabScene} tones={NIGHT} pixel={2} curtain />
         <div className="absolute inset-x-0 top-[16%] px-4 text-center">
           <p className="lp-mono text-[11px] uppercase tracking-[0.3em] text-white/50">
-            05 · Código aberto
+            04 · Código aberto
           </p>
           <h2 data-reveal className="ff-display mt-5 text-[clamp(3.4rem,10.5vw,9.5rem)] leading-[0.9]">
             Código <em>aberto.</em>
@@ -210,6 +196,7 @@ function Track({
   pixel,
   className,
   children,
+  floatCtaStart,
 }: {
   id?: string;
   scene: Scene;
@@ -219,10 +206,17 @@ function Track({
   pixel?: number;
   className?: string;
   children: ReactNode;
+  floatCtaStart?: boolean;
 }) {
   const ref = useRef<HTMLElement>(null);
   return (
-    <section id={id} ref={ref} data-track className={cn("relative", height, className)}>
+    <section
+      id={id}
+      ref={ref}
+      data-track
+      data-cta-float-start={floatCtaStart ? "" : undefined}
+      className={cn("relative", height, className)}
+    >
       <div className="sticky top-0 h-[100svh] overflow-hidden">
         <DitherStage scene={scene} tones={tones} track={ref as RefObject<HTMLElement>} curtain={curtain} pixel={pixel} />
         {children}
@@ -275,50 +269,125 @@ function Caption({
 }
 
 function Nav() {
-  const [scrolled, setScrolled] = useState(false);
-  // Sobre o papel claro da abertura, a nav fica escura.
-  const [light, setLight] = useState(true);
-
-  useEffect(() => {
-    const update = () => {
-      setScrolled(window.scrollY > 24);
-      const hero = document.querySelector("[data-hero]");
-      setLight(hero ? hero.getBoundingClientRect().bottom > 56 : false);
-    };
-    update();
-    window.addEventListener("scroll", update, { passive: true });
-    return () => window.removeEventListener("scroll", update);
-  }, []);
+  // Absolute: sobe com o hero. Sem barra/blur no scroll — o CTA volta no float.
+  const ctaRef = useRef<HTMLAnchorElement>(null);
 
   return (
-    <header
-      className="lp-nav fixed inset-x-0 top-0 z-50"
-      data-scrolled={scrolled}
-      data-tone={light ? "light" : "dark"}
-    >
-      <nav className="mx-auto flex h-14 items-center justify-between gap-4 px-4 md:px-8">
-        <Link href={routes.home} className="flex items-center gap-2 text-[15px] font-medium lowercase tracking-tight">
-          <BrandMark size={22} />
-          {APP_MARK}
-        </Link>
-        <div className="flex items-center gap-2">
-          <a
-            href={GITHUB}
-            target="_blank"
-            rel="noreferrer"
-            className="lp-nav__link hidden px-2 py-1 text-sm sm:inline"
-          >
-            GitHub
-          </a>
+    <>
+      <header className="lp-nav absolute inset-x-0 top-0 z-50" data-tone="light">
+        <nav className="mx-auto flex h-14 items-center justify-between gap-4 px-4 md:px-8">
           <Link
-            href={routes.discover}
-            className="lp-nav__cta rounded-full px-3.5 py-1.5 text-sm font-medium"
+            href={routes.home}
+            className="flex items-center gap-2 text-[15px] font-medium lowercase tracking-tight"
           >
-            Abrir o app
+            <BrandMark size={22} />
+            {APP_MARK}
           </Link>
-        </div>
-      </nav>
-    </header>
+          <div className="flex items-center gap-2">
+            <a
+              href={GITHUB}
+              target="_blank"
+              rel="noreferrer"
+              className="lp-nav__link hidden px-2 py-1 text-sm sm:inline"
+            >
+              GitHub
+            </a>
+            <Link
+              ref={ctaRef}
+              href={routes.discover}
+              data-lp-nav-cta=""
+              className="lp-nav__cta rounded-full px-3.5 py-1.5 text-sm font-medium"
+            >
+              Abrir o app
+            </Link>
+          </div>
+        </nav>
+      </header>
+      <FloatingAppCta sourceRef={ctaRef} />
+    </>
+  );
+}
+
+/**
+ * Cópia fixa do “Abrir o app”: o header absolute some com o scroll;
+ * quando o hero sai, o botão sobe de dentro da máscara (padrão Cadda).
+ */
+function FloatingAppCta({
+  sourceRef,
+}: {
+  sourceRef: RefObject<HTMLAnchorElement | null>;
+}) {
+  const wrapRef = useRef<HTMLDivElement>(null);
+  const [visible, setVisible] = useState(false);
+  // light = fundo claro → botão preto; dark = fundo escuro → botão branco
+  const [tone, setTone] = useState<"light" | "dark">("dark");
+
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    const source = sourceRef.current;
+    if (!wrap || !source) return;
+
+    const pin = () => {
+      const r = source.getBoundingClientRect();
+      if (r.width < 2) return;
+      wrap.style.top = `${r.top + window.scrollY}px`;
+      wrap.style.left = `${r.left}px`;
+      wrap.style.width = `${r.width}px`;
+    };
+
+    const readTone = (): "light" | "dark" => {
+      const slot = wrap.getBoundingClientRect();
+      const x = slot.left + slot.width / 2;
+      const y = Math.min(
+        Math.max(8, slot.top + 20),
+        window.innerHeight - 8,
+      );
+      const prev = wrap.style.pointerEvents;
+      wrap.style.pointerEvents = "none";
+      const under = document.elementFromPoint(x, y);
+      wrap.style.pointerEvents = prev;
+      if (under?.closest("[data-hero], .lp-day")) return "light";
+      return "dark";
+    };
+
+    const sync = () => {
+      pin();
+      const hero = document.querySelector("[data-hero]");
+      const start = document.querySelector("[data-cta-float-start]");
+      const show = start
+        ? start.getBoundingClientRect().top <= 0
+        : hero
+          ? hero.getBoundingClientRect().bottom <= 0
+          : window.scrollY > window.innerHeight * 0.85;
+      setVisible(show);
+      setTone(readTone());
+    };
+
+    sync();
+    window.addEventListener("scroll", sync, { passive: true });
+    window.addEventListener("resize", sync, { passive: true });
+    return () => {
+      window.removeEventListener("scroll", sync);
+      window.removeEventListener("resize", sync);
+    };
+  }, [sourceRef]);
+
+  return (
+    <div
+      ref={wrapRef}
+      className="lp-cta-float"
+      data-visible={visible ? "true" : "false"}
+      data-tone={tone}
+      inert={!visible}
+    >
+      <Link
+        href={routes.discover}
+        className="lp-cta-float__btn lp-nav__cta rounded-full px-3.5 py-1.5 text-sm font-medium"
+        tabIndex={visible ? 0 : -1}
+      >
+        Abrir o app
+      </Link>
+    </div>
   );
 }
 
@@ -349,10 +418,7 @@ const FOOTER_COLUMNS = [
   },
 ] as const;
 
-/**
- * Mesmo desenho do footer do Copia: marca e colunas em cima, a linha do
- * copyright e, embaixo, a cena em dither que revela quando chega na tela.
- */
+/** Footer sem cena dither — só marca, colunas e copyright. */
 function Footer() {
   const ref = useRef<HTMLElement>(null);
   const [inView, setInView] = useState(false);
@@ -423,9 +489,6 @@ function Footer() {
           © {new Date().getFullYear()} {APP_NAME} · Licença MIT · sem afiliação institucional
         </p>
         <p>Projeto de estudante, aberto a quem quiser contribuir.</p>
-      </div>
-      <div className="lp-foot__scene">
-        <DitherStage scene={roadScene} tones={NIGHT} revealAt={0.2} />
       </div>
     </footer>
   );

@@ -1,6 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
+import { useSurface } from "@/components/surface-provider";
 import { FrostGlassVariant, FrostGlassVariantProp, glassVariantStyles } from "@/lib/glass-variants";
 import { cn } from "@/lib/utils";
 
@@ -12,6 +13,9 @@ type GlassCardProps = ComponentProps<typeof Card> &
 
 type GlassCardFooterProps = ComponentProps<typeof CardFooter> & FrostGlassVariantProp;
 
+const FLAT_CARD =
+  "border border-white/10 bg-[var(--ff-surface)] shadow-none ring-0";
+
 function GlassCard({
   className,
   glassVariant = "liquid-refract",
@@ -19,6 +23,20 @@ function GlassCard({
   surfaceClassName,
   ...props
 }: GlassCardProps) {
+  const { surface } = useSurface();
+
+  if (surface === "flat") {
+    return (
+      <Card
+        data-slot="glass-card"
+        data-glass-variant={glassVariant}
+        data-ff-surface-skin="flat"
+        className={cn(FLAT_CARD, "rounded-2xl", surfaceClassName, className)}
+        {...props}
+      />
+    );
+  }
+
   if (glassVariant === "liquid-refract") {
     return (
       <LiquidGlass {...liquidProps} className={cn("rounded-2xl", surfaceClassName, liquidProps?.className)}>

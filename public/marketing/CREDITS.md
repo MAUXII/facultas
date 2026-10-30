@@ -8,8 +8,9 @@ maioria vem de material livre do Wikimedia Commons.
   Este derivado segue a mesma licença (CC BY-SA 3.0).
 - `sheep-falling.png`,
   `sheep-tumble.png`, `look-a.png` a `look-d.png`, `crab-walk.png` e
-  `valley.webp`: geradas com o ChatGPT pelo autor do projeto, recortadas e
-  convertidas em tons de cinza (`valley.webp` também invertida, branco é tinta).
+  `valley-sky.webp`, `valley-far.webp`, `valley-near.webp`: geradas com o ChatGPT
+  pelo autor do projeto, recortadas e convertidas em tons de cinza (o vale também
+  invertido, branco é tinta, e separado em três camadas).
 - `moon.png`: "Moon nearside LRO" por NASA/GSFC/Arizona State University,
   domínio público.
   https://commons.wikimedia.org/wiki/File:Moon_nearside_LRO.jpg

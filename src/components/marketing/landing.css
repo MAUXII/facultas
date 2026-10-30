@@ -21,17 +21,80 @@
 
 .lp-nav {
   color: var(--lp-ink);
-  transition:
-    color 0.4s ease,
-    background-color 0.4s ease,
-    border-color 0.4s ease;
-  border-bottom: 1px solid transparent;
+  /* Sem barra/blur no scroll — o CTA flutuante cobre o call-to-action. */
+  background: transparent;
+  border-bottom: none;
 }
-.lp-nav[data-scrolled="true"] {
-  background: rgba(21, 22, 24, 0.72);
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
-  border-color: rgba(255, 255, 255, 0.06);
+
+/*
+ * CTA flutuante (padrão Cadda): header absolute some com o scroll;
+ * o botão sobe de dentro da máscara quando a trilha marcada entra.
+ */
+.lp-cta-float {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 60;
+  overflow: hidden;
+  padding: 0.5rem 1rem 1.5rem;
+  margin: -0.5rem -1rem -1.5rem;
+  pointer-events: none;
+  box-sizing: content-box;
+}
+
+.lp-cta-float__btn {
+  display: inline-flex;
+  transform: translateY(calc(100% + 2.5rem));
+  opacity: 1;
+  visibility: hidden;
+  background: #fff;
+  color: #151618;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+  transition:
+    transform 0.75s cubic-bezier(0.2, 0.7, 0, 1),
+    visibility 0s linear 0.75s,
+    background-color 0.55s ease,
+    color 0.55s ease,
+    box-shadow 0.55s ease;
+}
+
+.lp-cta-float[data-tone="light"] .lp-cta-float__btn {
+  background: #151618;
+  color: #fff;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.22);
+}
+
+.lp-cta-float[data-tone="dark"] .lp-cta-float__btn {
+  background: #fff;
+  color: #151618;
+  box-shadow: 0 8px 28px rgba(0, 0, 0, 0.35);
+}
+
+.lp-cta-float[data-visible="true"] {
+  pointer-events: auto;
+}
+
+.lp-cta-float[data-visible="true"] .lp-cta-float__btn {
+  transform: none;
+  visibility: visible;
+  /* Mantém a transição de cor — sem isso o tom preto/branco estalava. */
+  transition:
+    transform 0.75s cubic-bezier(0.2, 0.7, 0, 1),
+    visibility 0s,
+    background-color 0.55s ease,
+    color 0.55s ease,
+    box-shadow 0.55s ease;
+}
+
+.lp-cta-float[data-visible="true"] .lp-cta-float__btn:hover {
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lp-cta-float__btn {
+    transition: none;
+    transform: none;
+  }
 }
 
 .lp-btn {
@@ -145,16 +208,13 @@
   }
 }
 
-/*
- * Footer no desenho do Copia (adaptado do "Ridgeline Dither Footer" de
- * Kedhareswer Naidu, MIT): colunas em cima, cena em dither embaixo.
- */
+/* Footer: colunas em cima, copyright embaixo — sem cena dither. */
 .lp-foot {
   position: relative;
   display: grid;
-  grid-template-rows: auto auto minmax(340px, 1fr);
-  min-height: 720px;
+  grid-template-rows: auto auto;
   overflow: hidden;
+  padding-bottom: clamp(28px, 4vw, 48px);
   --pad: 20px;
 }
 .lp-foot__r {
@@ -280,16 +340,9 @@
 .lp-foot__bar a:hover {
   color: var(--lp-ink);
 }
-.lp-foot__scene {
-  position: relative;
-  z-index: 1;
-  margin-top: -64px;
-}
 @media (max-width: 760px) {
   .lp-foot {
     --pad: 16px;
-    min-height: 0;
-    grid-template-rows: auto auto 300px;
   }
   .lp-foot__top {
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -301,9 +354,6 @@
   .lp-foot__bar {
     flex-direction: column;
     gap: 6px;
-  }
-  .lp-foot__scene {
-    margin-top: -24px;
   }
 }
 @media (prefers-reduced-motion: reduce) {
@@ -376,7 +426,4 @@
   background: #151618;
   color: #fff;
 }
-.lp-nav[data-tone="light"][data-scrolled="true"] {
-  background: rgba(233, 232, 227, 0.72);
-  border-color: rgba(21, 22, 24, 0.08);
-}
+

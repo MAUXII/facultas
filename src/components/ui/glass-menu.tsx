@@ -2,6 +2,7 @@
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
+import { useSurface } from "@/components/surface-provider";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
 import { cn } from "@/lib/utils";
 
@@ -30,6 +31,7 @@ export function GlassMenu({
   width = 220,
   zIndex = 500,
 }: GlassMenuProps) {
+  const { surface } = useSurface();
   const ref = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState({ left: x, top: y });
 
@@ -94,7 +96,10 @@ export function GlassMenu({
     >
       <LiquidGlass
         className={cn(
-          "w-full !rounded-2xl !bg-[rgba(18,18,20,0.62)] !p-0 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.55)]",
+          "w-full !rounded-2xl !p-0 shadow-[0_12px_40px_-8px_rgba(0,0,0,0.55)]",
+          surface === "flat"
+            ? "!border-white/10 !bg-[var(--ff-surface)]"
+            : "!bg-[rgba(18,18,20,0.62)]",
           className,
         )}
         blur={14}

@@ -7,6 +7,7 @@ import {
   useMotionValue,
   useSpring,
 } from "motion/react";
+import { useSurface } from "@/components/surface-provider";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
 import { playSnd } from "@/lib/snd";
 import { cn } from "@/lib/utils";
@@ -86,6 +87,7 @@ export function MagneticTabs({
   const springX = useSpring(pillX, springConfig);
   const springW = useSpring(pillW, springConfig);
 
+  const { surface } = useSurface();
   const useLeitourChrome = glass;
   const tabPad = size === "lg" ? "12px 20px" : undefined;
   const tabFs = size === "lg" ? 15 : undefined;
@@ -140,14 +142,22 @@ export function MagneticTabs({
   if (!useLeitourChrome) {
     return (
       <div className={cn(className)}>
-        <LiquidGlass className="inline-flex rounded-[10px] bg-white/[0.06]">
+        <LiquidGlass
+          className={cn(
+            "inline-flex rounded-[10px]",
+            surface === "flat" ? "" : "bg-white/[0.06]",
+          )}
+        >
           <div
             ref={barRef}
             className="relative inline-flex items-center p-[5px]"
             onMouseLeave={() => setHovered(null)}
           >
             <motion.div
-              className="pointer-events-none absolute top-[5px] z-0 h-[calc(100%-10px)] rounded-md bg-white/[0.08]"
+              className={cn(
+                "pointer-events-none absolute top-[5px] z-0 h-[calc(100%-10px)] rounded-md",
+                surface === "flat" ? "bg-white/[0.12]" : "bg-white/[0.08]",
+              )}
               style={{
                 left: 0,
                 x: springX,

@@ -56,6 +56,10 @@ import { Switch } from "@/components/ui/switch";
 import { HubAtmosphere } from "@/components/community-hub/hub-atmosphere";
 import { GlassCard } from "@/components/ui/glasscn/glass-card";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
+import {
+  GlassMenu,
+  GlassMenuItem,
+} from "@/components/ui/glass-menu";
 import { SoundLink } from "@/components/sound-link/sound-link";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import { routes } from "@/lib/routes";
@@ -102,8 +106,10 @@ export default function CriarComunidadePage() {
   const [peloLink, setPeloLink] = useState(GRUPO_DEFAULTS.peloLink);
   const [kind, setKind] = useState<CommunityKind>(GRUPO_DEFAULTS.kind);
   const [visOpen, setVisOpen] = useState(false);
+  const [visPos, setVisPos] = useState({ x: 0, y: 0 });
   const fileRef = useRef<HTMLInputElement>(null);
-  const visRef = useRef<HTMLDivElement>(null);
+  const visTriggerRef = useRef<HTMLButtonElement>(null);
+  const VIS_MENU_WIDTH = 290;
 
   const form = useForm<z.infer<typeof FormSchema>>({
     resolver: zodResolver(FormSchema),
@@ -136,14 +142,19 @@ export default function CriarComunidadePage() {
     };
   }, [coverPreview]);
 
-  useEffect(() => {
-    if (!visOpen) return;
-    const onPointer = (e: MouseEvent) => {
-      if (!visRef.current?.contains(e.target as Node)) setVisOpen(false);
-    };
-    document.addEventListener("mousedown", onPointer);
-    return () => document.removeEventListener("mousedown", onPointer);
-  }, [visOpen]);
+  const toggleVisMenu = () => {
+    if (visOpen) {
+      setVisOpen(false);
+      return;
+    }
+    const r = visTriggerRef.current?.getBoundingClientRect();
+    if (!r) return;
+    setVisPos({
+      x: Math.max(8, r.right - VIS_MENU_WIDTH),
+      y: r.bottom + 8,
+    });
+    setVisOpen(true);
+  };
 
   const onPickCover = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -353,11 +364,15 @@ export default function CriarComunidadePage() {
                 </div>
               </LiquidGlass>
 
-              <div className="relative" ref={visRef}>
+              <div>
                 <LiquidGlass className="rounded-full">
                   <button
+                    ref={visTriggerRef}
                     type="button"
-                    onClick={() => setVisOpen((v) => !v)}
+                    data-ff-glass-menu=""
+                    aria-haspopup="menu"
+                    aria-expanded={visOpen}
+                    onClick={toggleVisMenu}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-white/70 transition hover:text-white"
                   >
                     {publica ? (
@@ -370,57 +385,52 @@ export default function CriarComunidadePage() {
                   </button>
                 </LiquidGlass>
 
-                {visOpen && (
-                  <GlassCard
-                    glassVariant="frosted"
-                    className="absolute right-0 z-20 mt-2 w-[min(100vw-2rem,290px)] gap-0 p-1.5 py-1.5 text-white ring-0"
+                <GlassMenu
+                  open={visOpen}
+                  x={visPos.x}
+                  y={visPos.y}
+                  onClose={() => setVisOpen(false)}
+                  width={VIS_MENU_WIDTH}
+                >
+                  <GlassMenuItem
+                    onClick={() => {
+                      setPublica(true);
+                      setVisOpen(false);
+                    }}
+                    hint={
+                      publica ? (
+                        <Check className="h-4 w-4 text-white" strokeWidth={1.75} />
+                      ) : null
+                    }
                   >
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPublica(true);
-                        setVisOpen(false);
-                      }}
-                      className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/5"
-                    >
-                      <Globe2
-                        className="mt-0.5 h-4 w-4 shrink-0 text-white/55"
-                        strokeWidth={1.5}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm text-white">Pública</span>
-                        <span className="mt-0.5 block text-xs leading-snug text-white/40">
-                          Aparece no Descobrir
-                        </span>
+                    <Globe2 className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
+                    <span className="min-w-0">
+                      <span className="block">Pública</span>
+                      <span className="block text-[11px] leading-snug text-white/40">
+                        Aparece no Descobrir
                       </span>
-                      {publica && (
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-white" strokeWidth={1.75} />
-                      )}
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        setPublica(false);
-                        setVisOpen(false);
-                      }}
-                      className="flex w-full items-start gap-3 rounded-xl px-3 py-3 text-left transition hover:bg-white/5"
-                    >
-                      <Sparkles
-                        className="mt-0.5 h-4 w-4 shrink-0 text-white/55"
-                        strokeWidth={1.5}
-                      />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm text-white">Privada</span>
-                        <span className="mt-0.5 block text-xs leading-snug text-white/40">
-                          Não listada. Só entra com o código de acesso
-                        </span>
+                    </span>
+                  </GlassMenuItem>
+                  <GlassMenuItem
+                    onClick={() => {
+                      setPublica(false);
+                      setVisOpen(false);
+                    }}
+                    hint={
+                      !publica ? (
+                        <Check className="h-4 w-4 text-white" strokeWidth={1.75} />
+                      ) : null
+                    }
+                  >
+                    <Sparkles className="h-4 w-4 shrink-0 opacity-70" strokeWidth={1.5} />
+                    <span className="min-w-0">
+                      <span className="block">Privada</span>
+                      <span className="block text-[11px] leading-snug text-white/40">
+                        Só entra com o código
                       </span>
-                      {!publica && (
-                        <Check className="mt-0.5 h-4 w-4 shrink-0 text-white" strokeWidth={1.75} />
-                      )}
-                    </button>
-                  </GlassCard>
-                )}
+                    </span>
+                  </GlassMenuItem>
+                </GlassMenu>
               </div>
             </div>
 

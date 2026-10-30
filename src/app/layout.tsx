@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { DM_Sans, Fraunces } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
+import { SurfaceProvider } from "@/components/surface-provider";
 import { Toaster } from "@/components/ui/toaster";
 import { AppChrome } from "@/components/app-chrome/app-chrome";
 import { SoundProvider } from "@/components/sound-provider/sound-provider";
@@ -57,12 +58,14 @@ export default async function RootLayout({
             disableTransitionOnChange
             storageKey="ff-theme"
           >
-            <CommunitiesProvider>
-              <SoundProvider>
-                <AppChrome>{children}</AppChrome>
-                <Toaster />
-              </SoundProvider>
-            </CommunitiesProvider>
+            <SurfaceProvider>
+              <CommunitiesProvider>
+                <SoundProvider>
+                  <AppChrome>{children}</AppChrome>
+                  <Toaster />
+                </SoundProvider>
+              </CommunitiesProvider>
+            </SurfaceProvider>
           </ThemeProvider>
         </NextIntlClientProvider>
       </body>

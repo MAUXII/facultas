@@ -379,19 +379,35 @@ export const towerScene: Scene = ({ ctx, w, h, t, p }) => {
 };
 
 /** A capa da turma no app: uma aula de verdade, com zoom lento. */
+// Ponteiro suavizado da abertura, de -0.5 a 0.5.
+let valleyPointer = 0;
+
 /**
- * Abertura: vale com montanhas, rio e campo. A imagem já vem invertida
- * (branco é tinta) e some em papel na parte de baixo, onde fica o texto.
+ * Abertura: vale com montanhas, rio e campo, em três camadas já invertidas
+ * (branco é tinta). As montanhas sobem ao carregar; depois cada camada anda
+ * numa velocidade com o scroll e o ponteiro, e as nuvens derivam devagar. Tudo
+ * some em papel na parte de baixo, onde fica o texto.
  */
-export const valleyScene: Scene = ({ ctx, w, h }) => {
-  const img = image("/marketing/valley.webp");
-  if (!ready(img)) return;
+export const valleyScene: Scene = ({ ctx, w, h, t, r, px, reduced }) => {
+  const sky = image("/marketing/valley-sky.webp");
+  const far = image("/marketing/valley-far.webp");
+  const near = image("/marketing/valley-near.webp");
+  if (!ready(sky) || !ready(far) || !ready(near)) return;
   const portrait = h > w;
-  const scale = Math.max(w / img.naturalWidth, (h * (portrait ? 0.78 : 1)) / img.naturalHeight);
-  const dw = img.naturalWidth * scale;
-  const dh = img.naturalHeight * scale;
+  // Sobra de 8% para as camadas andarem sem mostrar a borda.
+  const scale = 1.08 * Math.max(w / sky.naturalWidth, (h * (portrait ? 0.78 : 1)) / sky.naturalHeight);
+  const dw = sky.naturalWidth * scale;
+  const dh = sky.naturalHeight * scale;
   // No retrato a imagem corta dos lados; o centro fica na montanha maior.
-  ctx.drawImage(img, (w - dw) * (portrait ? 0.56 : 0.5), 0, dw, dh);
+  const x0 = (w - dw) * (portrait ? 0.56 : 0.5);
+  const y0 = -dh * 0.05;
+  valleyPointer += ((px < 0 ? 0 : px - 0.5) - valleyPointer) * 0.06;
+  const scrolled = reduced ? 0 : clamp(window.scrollY / window.innerHeight, 0, 1);
+  const layer = (img: HTMLImageElement, sway: number, depth: number, rise: number) =>
+    ctx.drawImage(img, x0 + sway * w, y0 + depth * scrolled * h + rise * h, dw, dh);
+  layer(sky, Math.sin(t * 0.05) * 0.018 - valleyPointer * 0.012, 0.26, 0);
+  layer(far, -valleyPointer * 0.024, 0.16, (1 - land((r - 0.1) / 1.5)) * 0.14);
+  layer(near, -valleyPointer * 0.05, 0.06, (1 - land((r - 0.3) / 1.5)) * 0.1);
   const fade = ctx.createLinearGradient(0, h * (portrait ? 0.4 : 0.5), 0, h * (portrait ? 0.66 : 0.8));
   fade.addColorStop(0, "rgba(0,0,0,0)");
   fade.addColorStop(1, "rgba(0,0,0,1)");

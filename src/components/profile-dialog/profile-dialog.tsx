@@ -32,6 +32,8 @@ import { useRouter } from "next/navigation";
 import { toast } from "@/components/ui/use-toast";
 import { routes } from "@/lib/routes";
 import { useLocale, useTranslations } from "next-intl";
+import { useSurface } from "@/components/surface-provider";
+import type { SurfaceMode } from "@/lib/surface";
 
 type ProfileDialogProps = {
   open: boolean;
@@ -115,6 +117,7 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   const router = useRouter();
   const t = useTranslations("profile");
   const locale = useLocale();
+  const { surface, setSurface } = useSurface();
   const [qrOpen, setQrOpen] = useState(false);
   const [copyState, setCopyState] = useState<"idle" | "copying" | "copied" | "error">(
     "idle",
@@ -315,6 +318,36 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                       >
                         {t("langEn")}
                       </button>
+                    </div>
+                  </section>
+
+                  <section>
+                    <p className="mb-2 text-sm font-medium text-white/70">
+                      {t("appearance")}
+                    </p>
+                    <div className="flex gap-2">
+                      {(
+                        [
+                          ["glass", t("surfaceGlass")],
+                          ["flat", t("surfaceFlat")],
+                        ] as const satisfies ReadonlyArray<
+                          readonly [SurfaceMode, string]
+                        >
+                      ).map(([mode, label]) => (
+                        <button
+                          key={mode}
+                          type="button"
+                          data-snd="select"
+                          onClick={() => setSurface(mode)}
+                          className={`flex-1 rounded-2xl py-3 text-sm font-medium transition ${
+                            surface === mode
+                              ? "bg-white text-black"
+                              : "bg-white/[0.06] text-white/45 hover:text-white"
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
                     </div>
                   </section>
 

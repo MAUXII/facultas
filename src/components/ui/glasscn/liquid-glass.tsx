@@ -12,7 +12,11 @@ import {
   useState,
 } from "react";
 
+import { useSurface } from "@/components/surface-provider";
 import { cn } from "@/lib/utils";
+
+const FLAT_SURFACE =
+  "relative overflow-hidden border border-white/10 bg-[var(--ff-surface)] shadow-none";
 
 type MapGeometry = {
   width: number; // element width, CSS px, integer
@@ -153,6 +157,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(function
   },
   ref,
 ) {
+  const { surface } = useSurface();
   const rawId = useId();
   const filterId = useMemo(() => `liquid-glass-${rawId.replace(/:/g, "")}`, [rawId]);
 
@@ -178,6 +183,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(function
   const [geometry, setGeometry] = useState<MapGeometry | null>(null);
 
   useEffect(() => {
+    if (surface === "flat") return;
     const el = localRef.current;
     if (!el) return;
     const measure = () => {
@@ -197,9 +203,12 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(function
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [bezel]);
+  }, [bezel, surface]);
 
-  const mapUrl = useMemo(() => (geometry ? createDisplacementMap(geometry) : ""), [geometry]);
+  const mapUrl = useMemo(
+    () => (surface === "glass" && geometry ? createDisplacementMap(geometry) : ""),
+    [geometry, surface],
+  );
 
   // -------------------------------------------------------------------------
   // Browser capability gate
@@ -213,6 +222,20 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(function
   useEffect(() => {
     setSupported(supportsSvgBackdropFilter());
   }, []);
+
+  if (surface === "flat") {
+    return (
+      <div
+        ref={setRefs}
+        className={cn(FLAT_SURFACE, "rounded-full", className)}
+        style={style}
+        data-ff-surface-skin="flat"
+        {...props}
+      >
+        {children}
+      </div>
+    );
+  }
 
   const refractionActive = supported && mapUrl !== "";
   const backdropFilter = refractionActive
@@ -228,6 +251,7 @@ export const LiquidGlass = forwardRef<HTMLDivElement, LiquidGlassProps>(function
           className,
         )}
         style={{ ...style, backdropFilter, WebkitBackdropFilter: backdropFilter } as CSSProperties}
+        data-ff-surface-skin="glass"
         {...props}
       >
         {children}
