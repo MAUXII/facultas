@@ -7,6 +7,8 @@ export type IcsEvent = {
   startsAt: Date;
   endsAt: Date;
   updatedAt?: Date;
+  /** Repetição (RFC 5545), ex.: "FREQ=WEEKLY;UNTIL=20270401T000000Z". */
+  rrule?: string;
 };
 
 function pad(n: number) {
@@ -71,6 +73,7 @@ export function buildIcsCalendar(opts: {
       `DTSTART:${formatIcsUtc(event.startsAt)}`,
     );
     lines.push(`DTEND:${formatIcsUtc(event.endsAt)}`);
+    if (event.rrule) lines.push(`RRULE:${event.rrule}`);
     if (event.updatedAt) {
       lines.push(`LAST-MODIFIED:${formatIcsUtc(event.updatedAt)}`);
     }

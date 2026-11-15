@@ -28,6 +28,8 @@ export interface MagneticTabItem {
 interface MagneticTabsProps {
   items?: MagneticTabItem[];
   defaultValue?: string;
+  /** Valor controlado: quando muda por fora, a pílula acompanha. */
+  value?: string;
   onChange?: (value: string) => void;
   sound?: boolean;
   className?: string;
@@ -64,6 +66,7 @@ export function MagneticTabs({
     { value: "faq", label: "FAQ", content: "FAQ content here." },
   ],
   defaultValue,
+  value,
   onChange,
   sound = true,
   className,
@@ -71,7 +74,11 @@ export function MagneticTabs({
   contentBoxed = true,
   glass = false,
 }: MagneticTabsProps) {
-  const [active, setActive] = useState(defaultValue || items[0]?.value || "");
+  const [active, setActive] = useState(value || defaultValue || items[0]?.value || "");
+
+  useEffect(() => {
+    if (value !== undefined) setActive(value);
+  }, [value]);
   const [hovered, setHovered] = useState<string | null>(null);
   const [selectMode, setSelectMode] = useState(false);
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([]);
@@ -144,8 +151,8 @@ export function MagneticTabs({
       <div className={cn(className)}>
         <LiquidGlass
           className={cn(
-            "inline-flex rounded-[10px]",
-            surface === "flat" ? "" : "bg-white/[0.06]",
+            "inline-flex !rounded-[10px]",
+            surface === "flat" ? "!bg-white/[0.06]" : "bg-white/[0.06]",
           )}
         >
           <div

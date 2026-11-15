@@ -77,7 +77,7 @@ export function Landing({ fontClass }: { fontClass?: string }) {
         <Caption
           className="md:inset-x-auto md:bottom-[30vh] md:right-[7vw] md:mx-0 md:max-w-[19rem] md:text-left"
           style={at(0.74, 0.86, 1.1, 1.2)}>
-          Turma, monitoria, grupo ou evento. Pública no Descobrir, privada com
+          Turma, grupo ou evento. Pública no Descobrir, privada com
           código.
         </Caption>
       </Track>

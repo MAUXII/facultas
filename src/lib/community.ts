@@ -7,8 +7,21 @@ export const COMMUNITY_KINDS = [
 
 export type CommunityKind = (typeof COMMUNITY_KINDS)[number]["id"];
 
+/** Kinds novos na UI (create / Descobrir). `monitoria` permanece no DB legado. */
+export const CREATABLE_COMMUNITY_KINDS = COMMUNITY_KINDS.filter(
+  (k) => k.id !== "monitoria",
+);
+
 export function labelKind(kind: string | null | undefined) {
   return COMMUNITY_KINDS.find((k) => k.id === kind)?.label || "Grupo";
+}
+
+/** Quem cuida da sala, no tom do tipo: turma tem representante; o resto, admin. */
+export function leaderLabel(kind: string | null | undefined) {
+  if (kind === "turma") return "o representante";
+  if (kind === "monitoria") return "o monitor";
+  if (kind === "evento") return "a organização";
+  return "o admin";
 }
 
 export function createLabel(kind: string | null | undefined) {

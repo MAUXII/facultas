@@ -11,6 +11,7 @@ const TURMA = "c1";
 function memoryPort(seed?: {
   code?: string;
   requiresApproval?: boolean;
+  guestAccess?: "off" | "open" | "approval";
   membership?: MemberStatus | null;
 }) {
   const members: Array<{
@@ -30,7 +31,12 @@ function memoryPort(seed?: {
   const port: JoinPort & { members: typeof members } = {
     findByCode: (code) =>
       code === (seed?.code ?? "K7M2NP")
-        ? { id: TURMA, publicId: "a43qw5pq", requiresApproval: seed?.requiresApproval ?? false }
+        ? {
+            id: TURMA,
+            publicId: "a43qw5pq",
+            requiresApproval: seed?.requiresApproval ?? false,
+            guestAccess: seed?.guestAccess ?? "off",
+          }
         : null,
     membership: (communityId, userId) => {
       if (removed && communityId === TURMA && userId === ACTOR) {
@@ -116,5 +122,26 @@ describe("Join by access code", () => {
     expect(port.members).toEqual([
       { communityId: TURMA, userId: ACTOR, status: "active" },
     ]);
+  });
+});
+
+describe("Join as guest", () => {
+  test("guest_off rejects", async () => {
+    const port = memoryPort({ guestAccess: "off" });
+    await expect(createJoin(port).asGuest(ACTOR, "K7M2NP")).rejects.toMatchObject({
+      code: "guest_off",
+    });
+  });
+
+  test("open guest joins active", async () => {
+    const port = memoryPort({ guestAccess: "open" });
+    const result = await createJoin(port).asGuest(ACTOR, "K7M2NP");
+    expect(result.status).toBe("active");
+  });
+
+  test("approval guest joins pending", async () => {
+    const port = memoryPort({ guestAccess: "approval" });
+    const result = await createJoin(port).asGuest(ACTOR, "K7M2NP");
+    expect(result.status).toBe("pending");
   });
 });

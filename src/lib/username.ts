@@ -3,7 +3,7 @@ export function slugifyUsername(value: string): string {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "")
+    .replace(/[^a-z0-9_]+/g, "")
     .slice(0, 24);
 }
 

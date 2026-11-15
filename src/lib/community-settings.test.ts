@@ -17,12 +17,14 @@ describe("Community settings", () => {
       avisosWriters: "admins",
       materiaisWriters: "admins",
       peloLink: false,
+      guestAccess: "off",
     });
   });
 
   test("new grupo also defaults to representante-only writers", () => {
     expect(defaultSettings("grupo").avisosWriters).toBe("admins");
     expect(defaultSettings("grupo").materiaisWriters).toBe("admins");
+    expect(defaultSettings("grupo").guestAccess).toBe("open");
   });
 
   test("settingsFrom treats missing columns as the turma default writers", () => {
@@ -49,6 +51,7 @@ describe("Community settings", () => {
         membrosAvisos: true,
         membrosMateriais: false,
         peloLink: true,
+        guestAccess: "approval",
       }),
     ).toEqual({
       kind: "turma",
@@ -57,6 +60,7 @@ describe("Community settings", () => {
       avisosWriters: "members",
       materiaisWriters: "admins",
       peloLink: true,
+      guestAccess: "approval",
     });
   });
 
@@ -68,6 +72,7 @@ describe("Community settings", () => {
       membrosAvisos: true,
       membrosMateriais: false,
       peloLink: true,
+      guestAccess: "open" as const,
     };
     expect(toForm(fromForm(form))).toEqual(form);
   });

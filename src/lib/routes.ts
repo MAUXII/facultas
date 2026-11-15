@@ -4,6 +4,8 @@ export const routes = {
   community: (id: string) => `/communities/${id}`,
   communityOf: (community: { public_id?: string | null; id: string }) =>
     `/communities/${community.public_id || community.id}`,
+  /** Convite por código de acesso — landing + aceitar. */
+  invite: (code: string) => `/i/${encodeURIComponent(code.trim().toUpperCase())}`,
   create: "/create",
   createWithKind: (kind: string) => `/create?kind=${kind}`,
   discover: "/discover",

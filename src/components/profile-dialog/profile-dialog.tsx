@@ -34,6 +34,7 @@ import { routes } from "@/lib/routes";
 import { useLocale, useTranslations } from "next-intl";
 import { useSurface } from "@/components/surface-provider";
 import type { SurfaceMode } from "@/lib/surface";
+import { FEATURES } from "@/lib/features";
 
 type ProfileDialogProps = {
   open: boolean;
@@ -105,7 +106,10 @@ function Row({
       {action ? (
         <span className="shrink-0 text-sm text-white/55">{action}</span>
       ) : (
-        <ChevronRight className="h-4 w-4 shrink-0 text-white/25" strokeWidth={1.5} />
+        <ChevronRight
+          className="h-4 w-4 shrink-0 text-white/25"
+          strokeWidth={1.5}
+        />
       )}
     </button>
   );
@@ -119,9 +123,9 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
   const locale = useLocale();
   const { surface, setSurface } = useSurface();
   const [qrOpen, setQrOpen] = useState(false);
-  const [copyState, setCopyState] = useState<"idle" | "copying" | "copied" | "error">(
-    "idle",
-  );
+  const [copyState, setCopyState] = useState<
+    "idle" | "copying" | "copied" | "error"
+  >("idle");
 
   useEffect(() => {
     if (open) setCopyState("idle");
@@ -239,9 +243,9 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                     <p className="mb-2 text-sm font-medium text-white/70">
                       {t("account")}
                     </p>
-                    <GlassCard className="gap-0 overflow-hidden py-0 text-white">
+                    <GlassCard className="divide-y divide-[var(--ff-line-flat)] gap-0 overflow-hidden py-0 text-white">
                       <div className="flex items-center gap-4 px-4 py-4">
-                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
+                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/10">
                           {avatarUrl ? (
                             <LiveMedia
                               src={avatarUrl}
@@ -269,23 +273,23 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                           ) : null}
                         </div>
                       </div>
-                      <div className="mx-4 h-px bg-white/[0.06]" />
                       <Row
                         icon={User}
                         label={t("editProfile")}
                         hint={t("editProfileHint")}
                         onClick={() => go(routes.profile)}
                       />
-                      <div className="mx-4 h-px bg-white/[0.06]" />
-                      <Row
-                        icon={QrCode}
-                        label={t("qrRow")}
-                        hint={t("qrRowHint")}
-                        onClick={() => {
-                          onOpenChange(false);
-                          setQrOpen(true);
-                        }}
-                      />
+                      {FEATURES.qr ? (
+                        <Row
+                          icon={QrCode}
+                          label={t("qrRow")}
+                          hint={t("qrRowHint")}
+                          onClick={() => {
+                            onOpenChange(false);
+                            setQrOpen(true);
+                          }}
+                        />
+                      ) : null}
                     </GlassCard>
                   </section>
 
@@ -381,7 +385,9 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                               : t("agendaHint")
                         }
                         action={
-                          copyState === "copied" ? t("agendaCopied") : t("agendaCopy")
+                          copyState === "copied"
+                            ? t("agendaCopied")
+                            : t("agendaCopy")
                         }
                         onClick={() => void copyAgenda()}
                       />
@@ -392,13 +398,12 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
                     <p className="mb-2 text-sm font-medium text-white/70">
                       {t("about")}
                     </p>
-                    <GlassCard className="gap-0 overflow-hidden py-0 text-white">
+                    <GlassCard className="divide-y divide-[var(--ff-line-flat)] gap-0 overflow-hidden py-0 text-white">
                       <Row
                         icon={Shield}
                         label={t("privacy")}
                         onClick={() => go(routes.privacy)}
                       />
-                      <div className="mx-4 h-px bg-white/[0.06]" />
                       <Row
                         icon={FileText}
                         label={t("terms")}

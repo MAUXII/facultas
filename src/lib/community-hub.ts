@@ -9,6 +9,7 @@ export type MemberRow = {
   name: string;
   username: string | null;
   avatar_url: string | null;
+  is_guest: boolean;
 };
 
 export type PostRow = {
@@ -45,6 +46,7 @@ type ProfileEmbed = {
   name?: string;
   username?: string | null;
   avatar_url?: string | null;
+  is_guest?: boolean;
 };
 
 export async function listarMembros(communityId: string): Promise<MemberRow[]> {
@@ -65,7 +67,7 @@ export async function listarMembros(communityId: string): Promise<MemberRow[]> {
   if (ids.length > 0) {
     const { data: profiles, error: profilesError } = await supabase
       .from("profiles")
-      .select("id, name, username, avatar_url")
+      .select("id, name, username, avatar_url, is_guest")
       .in("id", ids);
 
     if (profilesError) throw profilesError;
@@ -75,6 +77,7 @@ export async function listarMembros(communityId: string): Promise<MemberRow[]> {
         name: profile.name,
         username: profile.username,
         avatar_url: profile.avatar_url,
+        is_guest: profile.is_guest === true,
       });
     }
   }
@@ -89,6 +92,7 @@ export async function listarMembros(communityId: string): Promise<MemberRow[]> {
       name: profile.name || "Membro",
       username: profile.username ?? null,
       avatar_url: profile.avatar_url ?? null,
+      is_guest: profile.is_guest === true,
     };
   });
 }
@@ -188,4 +192,54 @@ export async function listarSessoesDaComunidade(
 
   if (error) throw error;
   return (data || []) as SessionRow[];
+}
+
+/** Admin aceita um pedido pendente (RLS: só o autor da sala, com conta completa). */
+export async function aprovarMembro(communityId: string, userId: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("community_members")
+    .update({ status: "active" })
+    .eq("community_id", communityId)
+    .eq("user_id", userId)
+    .eq("status", "pending");
+  if (error) throw error;
+}
+
+/** Admin recusa um pedido pendente: o vínculo some e a pessoa pode pedir de novo. */
+export async function recusarMembro(communityId: string, userId: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("community_members")
+    .delete()
+    .eq("community_id", communityId)
+    .eq("user_id", userId)
+    .eq("status", "pending");
+  if (error) throw error;
+}
+
+/**
+ * Dono tira um membro ativo da sala (RLS: autor com conta completa). Admins
+ * não saem por aqui. A pessoa pode pedir para entrar de novo.
+ */
+export async function removerMembro(communityId: string, userId: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("community_members")
+    .delete()
+    .eq("community_id", communityId)
+    .eq("user_id", userId)
+    .neq("role", "admin");
+  if (error) throw error;
+}
+
+/** A própria pessoa sai da sala ou cancela o pedido (RLS: o próprio vínculo). */
+export async function sairDaSala(communityId: string, userId: string) {
+  const supabase = createClient();
+  const { error } = await supabase
+    .from("community_members")
+    .delete()
+    .eq("community_id", communityId)
+    .eq("user_id", userId);
+  if (error) throw error;
 }

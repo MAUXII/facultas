@@ -104,6 +104,15 @@ function cellClass(selected: boolean, hovered: boolean) {
   );
 }
 
+/** Ano mínimo = ano atual; máximo 2027. Sem seletor de ano — só mês/dia/hora. */
+const YEAR_CAP = 2027;
+
+function clampYear(y: number) {
+  const nowY = new Date().getFullYear();
+  const maxY = Math.max(nowY, Math.min(YEAR_CAP, nowY + 1));
+  return Math.min(maxY, Math.max(nowY, y));
+}
+
 function CalendarScheduler({
   onConfirm,
   onStepChange,
@@ -115,13 +124,15 @@ function CalendarScheduler({
   className,
 }: CalendarSchedulerProps) {
   const seed = initialDate ?? new Date();
-  const [year, setYear] = useState(seed.getFullYear());
+  const [year, setYear] = useState(() => clampYear(seed.getFullYear()));
   const [month, setMonth] = useState(seed.getMonth());
   const [day, setDay] = useState<number>(seed.getDate());
   const [step, setStep] = useState<SchedulerStep>(
     startStep ?? (initialDate ? "time" : "month"),
   );
   const [hovered, setHovered] = useState<string | null>(null);
+  const nowY = new Date().getFullYear();
+  const maxY = Math.max(nowY, Math.min(YEAR_CAP, nowY + 1));
 
   const times = useMemo(() => {
     const out: string[] = [];
@@ -173,12 +184,21 @@ function CalendarScheduler({
     onConfirm?.({ date: fmtDate(year, month, day), time });
   };
 
-  const shiftYear = (delta: number) => {
-    playRuixenClick("soft");
-    setYear((y) => y + delta);
+  const canShiftMonth = (delta: number) => {
+    let next = month + delta;
+    let y = year;
+    if (next < 0) {
+      next = 11;
+      y -= 1;
+    } else if (next > 11) {
+      next = 0;
+      y += 1;
+    }
+    return y >= nowY && y <= maxY;
   };
 
   const shiftMonth = (delta: number) => {
+    if (!canShiftMonth(delta)) return;
     playRuixenClick("soft");
     setMonth((m) => {
       let next = m + delta;
@@ -190,6 +210,7 @@ function CalendarScheduler({
         next = 0;
         y += 1;
       }
+      y = clampYear(y);
       setYear(y);
       const max = dim(y, next);
       if (day > max) setDay(max);
@@ -197,50 +218,34 @@ function CalendarScheduler({
     });
   };
 
+  const monthLabel =
+    year === nowY ? MONTHS[month] : `${MONTHS[month]} ${year}`;
+
   return (
     <div className={cn("w-full select-none text-white", className)}>
       {step === "month" ? (
-        <>
-          <div className="mt-4 flex items-center gap-4">
-            <button
+        <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
+          {MONTHS.map((name, index) => (
+            <motion.button
+              key={name}
               type="button"
-              onClick={() => shiftYear(-1)}
-              className="text-sm text-white/40 transition hover:text-white"
+              {...stagger(index)}
+              onClick={() => pickMonth(index)}
+              onMouseEnter={() => setHovered(`m-${index}`)}
+              onMouseLeave={() => setHovered(null)}
+              whileTap={{ scale: 0.98 }}
+              className={cn(
+                cellClass(
+                  index === month,
+                  hovered === `m-${index}` && index !== month,
+                ),
+                "ff-display py-3 text-3xl font-medium md:text-4xl",
+              )}
             >
-              ‹
-            </button>
-            <span className="text-sm text-white/45">{year}</span>
-            <button
-              type="button"
-              onClick={() => shiftYear(1)}
-              className="text-sm text-white/40 transition hover:text-white"
-            >
-              ›
-            </button>
-          </div>
-          <div className="mt-10 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3">
-            {MONTHS.map((name, index) => (
-              <motion.button
-                key={name}
-                type="button"
-                {...stagger(index)}
-                onClick={() => pickMonth(index)}
-                onMouseEnter={() => setHovered(`m-${index}`)}
-                onMouseLeave={() => setHovered(null)}
-                whileTap={{ scale: 0.98 }}
-                className={cn(
-                  cellClass(
-                    index === month,
-                    hovered === `m-${index}` && index !== month,
-                  ),
-                  "ff-display py-3 text-3xl font-medium md:text-4xl",
-                )}
-              >
-                {name}
-              </motion.button>
-            ))}
-          </div>
-        </>
+              {name}
+            </motion.button>
+          ))}
+        </div>
       ) : null}
 
       {step === "day" ? (
@@ -248,22 +253,24 @@ function CalendarScheduler({
           <div className="mt-4 flex items-center gap-4">
             <button
               type="button"
+              disabled={!canShiftMonth(-1)}
               onClick={() => shiftMonth(-1)}
-              className="text-sm text-white/40 transition hover:text-white"
+              className="min-h-11 min-w-11 text-lg text-white/40 transition hover:text-white disabled:pointer-events-none disabled:opacity-20"
             >
               ‹
             </button>
             <button
               type="button"
               onClick={() => go("month")}
-              className="text-sm text-white/45 transition hover:text-white"
+              className="text-base text-white/55 transition hover:text-white"
             >
-              {MONTHS[month]} {year}
+              {monthLabel}
             </button>
             <button
               type="button"
+              disabled={!canShiftMonth(1)}
               onClick={() => shiftMonth(1)}
-              className="text-sm text-white/40 transition hover:text-white"
+              className="min-h-11 min-w-11 text-lg text-white/40 transition hover:text-white disabled:pointer-events-none disabled:opacity-20"
             >
               ›
             </button>
@@ -312,9 +319,9 @@ function CalendarScheduler({
           <button
             type="button"
             onClick={() => go("day")}
-            className="mt-4 text-left text-sm text-white/45 transition hover:text-white"
+            className="mt-4 text-left text-base text-white/55 transition hover:text-white"
           >
-            {pad(day)} {MONTHS[month]} {year}
+            {pad(day)} {monthLabel}
           </button>
           <div className="mt-10 grid max-h-[min(52vh,420px)] grid-cols-2 gap-x-8 gap-y-1 overflow-y-auto sm:grid-cols-3">
             {times.map((time, index) => {

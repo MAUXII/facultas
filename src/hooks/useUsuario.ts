@@ -10,6 +10,33 @@ import {
   syncAvatarUrl,
 } from "@/lib/user-service";
 
+/**
+ * `useUsuario` roda em vários componentes ao mesmo tempo (nav, página, sino…).
+ * Sem limite, cada instância gravava `last_login_at` ao montar: ~6 PATCH em
+ * `profiles` por página aberta. Agora é no máximo um por usuário a cada 10 min,
+ * compartilhado entre instâncias (e entre abas, via sessionStorage).
+ */
+const LAST_LOGIN_EVERY_MS = 10 * 60 * 1000;
+const lastLoginTouched = new Map<string, number>();
+
+function shouldTouchLastLogin(userId: string, now = Date.now()): boolean {
+  const key = `ff:last-login:${userId}`;
+  let last = lastLoginTouched.get(userId) ?? 0;
+  try {
+    last = Math.max(last, Number(sessionStorage.getItem(key)) || 0);
+  } catch {
+    /* sessionStorage indisponível: fica só o limite em memória */
+  }
+  if (now - last < LAST_LOGIN_EVERY_MS) return false;
+  lastLoginTouched.set(userId, now);
+  try {
+    sessionStorage.setItem(key, String(now));
+  } catch {
+    /* idem */
+  }
+  return true;
+}
+
 type UseUsuarioReturn = {
   usuario: Usuario | null;
   loading: boolean;
@@ -58,7 +85,7 @@ export function useUsuario(): UseUsuarioReturn {
           foto_url: metaAvatar,
         });
       } else {
-        void atualizarUltimoLogin(user.id);
+        if (shouldTouchLastLogin(user.id)) void atualizarUltimoLogin(user.id);
         if (!data.avatar_url) {
           data = (await syncAvatarUrl(user.id, metaAvatar)) || data;
         }

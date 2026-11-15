@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useTranslations } from "next-intl";
 import { WEEKDAYS, createGrade, type Aula, type Weekday } from "@/lib/grade";
 import { supabaseGradePort } from "@/lib/grade-supabase";
@@ -24,6 +24,7 @@ export function GradePanel({
   const [aulas, setAulas] = useState<Aula[]>([]);
   const [loading, setLoading] = useState(true);
   const [adding, setAdding] = useState(false);
+  const addTriggerRef = useRef<HTMLButtonElement>(null);
   const [editing, setEditing] = useState<Aula | null>(null);
 
   const dayShortLabels = Object.fromEntries(
@@ -64,6 +65,7 @@ export function GradePanel({
       {canEdit ? (
         <div className="flex justify-end">
           <button
+            ref={addTriggerRef}
             type="button"
             onClick={() => {
               playRuixenClick("soft");
@@ -108,6 +110,7 @@ export function GradePanel({
           userId={userId}
           aula={editing}
           onSaved={load}
+          anchorRef={editing ? undefined : addTriggerRef}
         />
       ) : null}
     </div>

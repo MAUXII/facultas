@@ -1,21 +1,21 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { CalendarDays, Plus, Search } from "lucide-react";
+import { Archive, CalendarDays, ChevronDown, Plus } from "lucide-react";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { CommunityCard } from "@/components/community-card/community-card";
-import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
 import { SoundLink } from "@/components/sound-link/sound-link";
 import { useRequireAuth } from "@/hooks/useRequireAuth";
 import { routes } from "@/lib/routes";
 import { useCommunities } from "../communities-context";
 import { useTranslations } from "next-intl";
+import { cn } from "@/lib/utils";
 
 export default function CommunitiesPage() {
   const { user, loading } = useRequireAuth();
   const { communities, fetchCommunities } = useCommunities();
-  const [searchTerm, setSearchTerm] = useState("");
   const t = useTranslations("nav");
+  const [showArchived, setShowArchived] = useState(false);
 
   useEffect(() => {
     void fetchCommunities();
@@ -31,14 +31,12 @@ export default function CommunitiesPage() {
 
   if (!user) return null;
 
-  const filtered = communities.filter((item) =>
-    (item.name || "").toLowerCase().includes(searchTerm.toLowerCase()),
-  );
-
-  const sorted = [...filtered].sort(
+  const byRecent = [...communities].sort(
     (a, b) =>
       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
   );
+  const sorted = byRecent.filter((c) => !c.archived_at);
+  const archived = byRecent.filter((c) => c.archived_at);
 
   return (
     <AppShell>
@@ -49,31 +47,52 @@ export default function CommunitiesPage() {
           </h1>
         </div>
 
-        <LiquidGlass className="w-full rounded-2xl">
-          <label className="flex h-12 w-full items-center gap-3 px-4">
-            <Search
-              className="h-4 w-4 shrink-0 text-white/35"
-              strokeWidth={1.75}
-            />
-            <input
-              type="search"
-              placeholder="Buscar comunidade"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="h-full w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-            />
-          </label>
-        </LiquidGlass>
+        {sorted.length > 0 || archived.length > 0 ? (
+          <>
+            {sorted.length > 0 ? (
+              <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
+                {sorted.map((community) => (
+                  <CommunityCard key={community.id} community={community} />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-white/45">
+                Todas as suas salas estão arquivadas.
+              </p>
+            )}
 
-        {sorted.length > 0 ? (
-          <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">
-            {sorted.map((community) => (
-              <CommunityCard key={community.id} community={community} />
-            ))}
-          </div>
+            {archived.length > 0 ? (
+              <section className="border-t border-white/[0.06] pt-6">
+                <button
+                  type="button"
+                  onClick={() => setShowArchived((v) => !v)}
+                  aria-expanded={showArchived}
+                  className="inline-flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-[13px] text-white/50 transition hover:bg-white/[0.06] hover:text-white"
+                >
+                  <Archive className="h-4 w-4" strokeWidth={1.5} />
+                  Arquivadas
+                  <span className="text-white/35">{archived.length}</span>
+                  <ChevronDown
+                    className={cn(
+                      "h-3.5 w-3.5 transition-transform",
+                      showArchived && "rotate-180",
+                    )}
+                    strokeWidth={1.5}
+                  />
+                </button>
+                {showArchived ? (
+                  <div className="mt-4 grid grid-cols-1 gap-x-8 gap-y-5 opacity-70 sm:grid-cols-2">
+                    {archived.map((community) => (
+                      <CommunityCard key={community.id} community={community} />
+                    ))}
+                  </div>
+                ) : null}
+              </section>
+            ) : null}
+          </>
         ) : (
           <div className="flex flex-col items-center justify-center py-24 text-center">
-            <div className="relative mb-6 flex h-28 w-28 items-center justify-center rounded-3xl bg-[var(--ff-surface)]">
+            <div className="relative mb-6 flex h-28 w-28 items-center justify-center rounded-[12px] border border-[var(--ff-line-flat)] bg-[var(--ff-surface)]">
               <CalendarDays
                 className="h-12 w-12 text-white/25"
                 strokeWidth={1.25}
@@ -86,20 +105,17 @@ export default function CommunitiesPage() {
               Nenhuma comunidade ainda
             </h2>
             <p className="mt-2 max-w-sm text-sm text-[var(--ff-muted)]">
-              {searchTerm
-                ? "Tente outro termo de busca."
-                : "Crie um grupo, uma turma ou um evento. Ou entre com o código no menu do perfil."}
+              Crie um grupo, uma turma ou um evento. Ou entre com o código no
+              menu do perfil.
             </p>
-            {!searchTerm && (
-              <SoundLink
-                href={routes.create}
-                sound="action"
-                className="mt-6 inline-flex items-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
-              >
-                <Plus className="h-4 w-4" strokeWidth={1.5} />
-                Criar grupo
-              </SoundLink>
-            )}
+            <SoundLink
+              href={routes.create}
+              sound="action"
+              className="mt-6 inline-flex items-center gap-2 rounded-[10px] bg-white px-5 py-3 text-sm font-semibold text-black transition hover:bg-white/90"
+            >
+              <Plus className="h-4 w-4" strokeWidth={1.5} />
+              Criar grupo
+            </SoundLink>
           </div>
         )}
       </div>

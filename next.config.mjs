@@ -12,6 +12,13 @@ const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["next-intl"],
+  experimental: {
+    outputFileTracingIncludes: {
+      "/api/guest-avatar/**": [
+        "./public/avatars/complete/*.png",
+      ],
+    },
+  },
   webpack(config) {
     config.resolve.alias = {
       ...config.resolve.alias,
@@ -42,6 +49,7 @@ const nextConfig = {
       { source: "/calendario", destination: "/calendar", permanent: true },
       { source: "/perfil", destination: "/profile", permanent: true },
       { source: "/auth/cadastro", destination: "/auth/signup", permanent: true },
+      { source: "/convite/:code", destination: "/i/:code", permanent: true },
     ];
   },
 };

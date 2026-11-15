@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { CalendarDays } from "lucide-react";
@@ -12,16 +12,15 @@ import {
   canCloseSession,
   canOpenSession,
   canUndoCheckIn,
-  normalizeOpenSession,
 } from "@/lib/sessao";
 import {
-  abrirSessao,
   desfazerPresenca,
   encerrarSessao,
   listarPresencas,
   marcarPresenca,
 } from "@/lib/sessao-supabase";
 import { GlassCard } from "@/components/ui/glasscn/glass-card";
+import { SessaoDialog } from "@/components/community-hub/sessao-dialog";
 
 function statusLabel(status: SessionRow["status"]) {
   if (status === "open") return "Aberta";
@@ -46,9 +45,8 @@ export function SessionPanel({
   sessions: SessionRow[];
   onChanged: () => void;
 }) {
-  const [title, setTitle] = useState("");
-  const [when, setWhen] = useState("");
-  const [place, setPlace] = useState("");
+  const [createOpen, setCreateOpen] = useState(false);
+  const createTriggerRef = useRef<HTMLButtonElement>(null);
   const [rows, setRows] = useState<{ session_id: string; user_id: string }[]>(
     [],
   );
@@ -75,48 +73,6 @@ export function SessionPanel({
     };
   }, [sessions, viaLink]);
 
-  const openSession = async () => {
-    if (!userId || !opens) return;
-    const draft = normalizeOpenSession({
-      title,
-      startsAt: when,
-      location: place,
-      institutionId,
-    });
-    if (!draft.ok) {
-      setError(
-        draft.reason === "title"
-          ? "Escreve o nome da sessão."
-          : "Escolhe quando ela começa.",
-      );
-      return;
-    }
-    setSaving(true);
-    setError("");
-    try {
-      await abrirSessao({
-        communityId,
-        hostId: userId,
-        institutionId: draft.value.institutionId,
-        title: draft.value.title,
-        startsAt: draft.value.startsAt,
-        location: draft.value.location,
-      });
-      setTitle("");
-      setWhen("");
-      setPlace("");
-      onChanged();
-    } catch (err) {
-      setError(
-        err instanceof Error && err.message === "institution_id"
-          ? "Rode a migration 016 no Supabase para abrir sessão sem instituição."
-          : "Não deu para abrir a sessão.",
-      );
-    } finally {
-      setSaving(false);
-    }
-  };
-
   const run = async (task: () => Promise<void>, fail: string) => {
     setSaving(true);
     setError("");
@@ -126,7 +82,7 @@ export function SessionPanel({
     } catch (err) {
       setError(
         err instanceof Error && err.message === "session_attendance"
-          ? "Rode a migration 016 no Supabase para marcar presença."
+          ? "Presença ainda não está liberada nesta sala."
           : fail,
       );
     } finally {
@@ -149,49 +105,21 @@ export function SessionPanel({
 
   return (
     <div className="flex flex-col gap-3">
-      {opens ? (
-        <GlassCard className="gap-0 p-4 text-white">
-          <input
-            value={title}
-            onChange={(event) => setTitle(event.target.value)}
-            placeholder="Nome da sessão"
-            aria-label="Nome da sessão"
-            className="w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-          />
-          <div className="mt-3 flex flex-col gap-3 sm:flex-row">
-            <input
-              type="datetime-local"
-              value={when}
-              onChange={(event) => setWhen(event.target.value)}
-              aria-label="Quando a sessão começa"
-              style={{ colorScheme: "dark" }}
-              className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm text-white outline-none sm:w-fit"
-            />
-            <input
-              value={place}
-              onChange={(event) => setPlace(event.target.value)}
-              placeholder="Lugar, se quiser"
-              aria-label="Lugar da sessão"
-              className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm text-white outline-none placeholder:text-white/30"
-            />
-          </div>
-          <div className="mt-3 flex items-center justify-end">
-            <button
-              type="button"
-              disabled={saving || !title.trim() || !when}
-              onClick={() => {
-                playRuixenClick("soft");
-                void openSession();
-              }}
-              className="shrink-0 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
-            >
-              Abrir sessão
-            </button>
-          </div>
-          {error ? (
-            <p className="mt-2 text-xs text-white/70">{error}</p>
-          ) : null}
-        </GlassCard>
+      {opens && userId ? (
+        <div className="flex justify-end">
+          <button
+            ref={createTriggerRef}
+            type="button"
+            data-snd="select"
+            onClick={() => {
+              playRuixenClick("soft");
+              setCreateOpen(true);
+            }}
+            className="text-sm text-white/40 transition hover:text-white"
+          >
+            Abrir sessão
+          </button>
+        </div>
       ) : null}
 
       {sessions.length === 0 ? (
@@ -311,6 +239,18 @@ export function SessionPanel({
       )}
       {!opens && error ? (
         <p className="text-xs text-white/70">{error}</p>
+      ) : null}
+
+      {opens && userId ? (
+        <SessaoDialog
+          open={createOpen}
+          onOpenChange={setCreateOpen}
+          communityId={communityId}
+          userId={userId}
+          institutionId={institutionId}
+          onSaved={onChanged}
+          anchorRef={createTriggerRef}
+        />
       ) : null}
     </div>
   );

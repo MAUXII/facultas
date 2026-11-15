@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 import { APP_NAME } from "@/lib/brand";
 import { buildIcsCalendar } from "@/lib/ics";
+import { aulaFeedEvents, type FeedAulaRow } from "@/lib/grade-agenda";
 
 type OwnerRow = { owner_id: string; cal_name: string };
 type FeedRow = {
@@ -51,20 +52,32 @@ export async function GET(
   }
 
   const rows = (data || []) as FeedRow[];
+
+  // Aulas da grade (migration 022). Sem a função ainda, o feed segue sem elas.
+  const { data: aulaRows, error: aulaError } = await supabase.rpc(
+    "calendar_feed_aulas_by_token",
+    { p_token: token },
+  );
+  const aulas = aulaError
+    ? []
+    : aulaFeedEvents((aulaRows || []) as FeedAulaRow[]);
   const calName = owner.cal_name?.trim()
     ? `${APP_NAME} · ${owner.cal_name.trim()}`
     : APP_NAME;
 
   const ics = buildIcsCalendar({
     name: calName,
-    events: rows.map((row) => ({
-      id: row.event_id,
-      title: row.title,
-      description: row.description || undefined,
-      startsAt: new Date(row.starts_at),
-      endsAt: new Date(row.ends_at),
-      updatedAt: new Date(row.updated_at),
-    })),
+    events: [
+      ...rows.map((row) => ({
+        id: row.event_id,
+        title: row.title,
+        description: row.description || undefined,
+        startsAt: new Date(row.starts_at),
+        endsAt: new Date(row.ends_at),
+        updatedAt: new Date(row.updated_at),
+      })),
+      ...aulas,
+    ],
   });
 
   return new NextResponse(ics, {

@@ -38,7 +38,7 @@ export async function listarComunidadesPublicas(): Promise<Community[]> {
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []) as Community[];
+  return ((data || []) as Community[]).filter((c) => !c.archived_at);
 }
 
 export async function buscarComunidade(
@@ -70,4 +70,27 @@ export async function entrarNaComunidade(
     status: requerAprovacao ? "pending" : "active",
   });
   if (error) throw error;
+}
+
+export function isArchived(community: Pick<Community, "archived_at">): boolean {
+  return Boolean(community.archived_at);
+}
+
+/** Arquiva (fim de semestre) ou desarquiva. Precisa da migração 023. */
+export async function arquivarComunidade(
+  id: string,
+  archived: boolean,
+): Promise<Community> {
+  const supabase = createClient();
+  const { data, error } = await supabase
+    .from("communities")
+    .update({ archived_at: archived ? new Date().toISOString() : null })
+    .eq("id", id)
+    .select("*")
+    .single();
+  if (error) {
+    if (error.message?.includes("archived_at")) throw new Error("archive_unavailable");
+    throw error;
+  }
+  return data as Community;
 }

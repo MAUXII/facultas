@@ -4,13 +4,13 @@ import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import { SoundLink } from "@/components/sound-link/sound-link";
 import { routes } from "@/lib/routes";
-import { coverIndex } from "@/lib/cover-tint";
 import { labelKind } from "@/lib/community";
 import { getInstituicao } from "@/lib/institutions";
 import { LiveMedia } from "@/components/live-media/live-media";
 import { cn } from "@/lib/utils";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import type { Community } from "@/types";
+import { coverIndexFor } from "@/lib/cover-meta";
 
 export function CommunityRow({
   community,
@@ -36,7 +36,7 @@ export function CommunityRow({
         className={`relative h-20 w-20 shrink-0 overflow-hidden rounded-xl ${
           community.cover_url
             ? "bg-black/40"
-            : `ff-cover-${coverIndex(community.id)}`
+            : `ff-cover-${coverIndexFor(community)}`
         }`}
       >
         {community.cover_url ? (

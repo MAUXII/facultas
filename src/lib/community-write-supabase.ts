@@ -50,6 +50,8 @@ export function supabaseCommunityWritePort(profile?: {
           name: input.nome,
           description: input.descricao,
           cover_url: input.capaUrl,
+          // Só manda quando há dado: banco sem a migração 021 continua aceitando.
+          ...(input.capaMeta ? { cover_meta: input.capaMeta } : {}),
           tags: input.tags,
           kind: input.settings.kind,
           visibility: input.settings.publica ? "public" : "code",
@@ -59,6 +61,7 @@ export function supabaseCommunityWritePort(profile?: {
           avisos_writers: input.settings.avisosWriters,
           materiais_writers: input.settings.materiaisWriters,
           link_access: input.settings.peloLink,
+          guest_access: input.settings.guestAccess,
           author_id: input.authorId,
         };
 
@@ -76,11 +79,20 @@ export function supabaseCommunityWritePort(profile?: {
         lastError = error;
         if (error?.code === "23505") continue;
 
-        if (error?.message?.includes("link_access")) {
-          const { link_access: _link, ...withoutLink } = body;
+        if (
+          error?.message?.includes("link_access") ||
+          error?.message?.includes("guest_access") ||
+          error?.message?.includes("cover_meta")
+        ) {
+          const stripped = { ...body } as Record<string, unknown>;
+          if (error.message.includes("cover_meta")) delete stripped.cover_meta;
+          if (error.message.includes("link_access")) delete stripped.link_access;
+          if (error.message.includes("guest_access")) {
+            delete stripped.guest_access;
+          }
           const retry = await supabase
             .from("communities")
-            .insert(withoutLink)
+            .insert(stripped)
             .select("*")
             .single();
           if (!retry.error && retry.data) {
@@ -96,8 +108,10 @@ export function supabaseCommunityWritePort(profile?: {
             materiais_writers: _m,
             public_id: _p,
             link_access: _link,
-            ...legacy
-          } = body;
+            guest_access: _guest,
+            ...legacyWithMeta
+          } = body as typeof body & { cover_meta?: unknown };
+          const { cover_meta: _meta, ...legacy } = legacyWithMeta;
           const retry = await supabase
             .from("communities")
             .insert(legacy)
@@ -121,6 +135,9 @@ export function supabaseCommunityWritePort(profile?: {
       if (patch.descricao !== undefined) body.description = patch.descricao.trim();
       if (patch.tags !== undefined) body.tags = patch.tags;
       if (patch.capaUrl !== undefined) body.cover_url = patch.capaUrl;
+      if (patch.capaMeta !== undefined) body.cover_meta = patch.capaMeta;
+      // Trocou a capa sem dizer de onde veio: o crédito antigo não vale mais.
+      else if (patch.capaUrl !== undefined) body.cover_meta = null;
       if (patch.settings) {
         body.kind = patch.settings.kind;
         body.visibility = patch.settings.publica ? "public" : "code";
@@ -128,6 +145,7 @@ export function supabaseCommunityWritePort(profile?: {
         body.avisos_writers = patch.settings.avisosWriters;
         body.materiais_writers = patch.settings.materiaisWriters;
         body.link_access = patch.settings.peloLink;
+        body.guest_access = patch.settings.guestAccess;
       }
 
       const { data, error } = await supabase
@@ -136,8 +154,14 @@ export function supabaseCommunityWritePort(profile?: {
         .eq("id", id)
         .select("*")
         .single();
-      if (error?.message?.includes("link_access")) {
-        delete body.link_access;
+      if (
+        error?.message?.includes("link_access") ||
+        error?.message?.includes("guest_access") ||
+        error?.message?.includes("cover_meta")
+      ) {
+        if (error.message.includes("cover_meta")) delete body.cover_meta;
+        if (error.message.includes("link_access")) delete body.link_access;
+        if (error.message.includes("guest_access")) delete body.guest_access;
         const retry = await supabase
           .from("communities")
           .update(body)
@@ -145,8 +169,15 @@ export function supabaseCommunityWritePort(profile?: {
           .select("*")
           .single();
         if (retry.error) throw retry.error;
-        if (patch.settings?.peloLink) {
+        if (patch.settings?.peloLink && error.message.includes("link_access")) {
           throw new Error("link_access");
+        }
+        if (
+          patch.settings?.guestAccess &&
+          patch.settings.guestAccess !== "off" &&
+          error.message.includes("guest_access")
+        ) {
+          throw new Error("guest_access");
         }
         return retry.data as Community;
       }

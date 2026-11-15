@@ -15,9 +15,8 @@ import { HubAtmosphere } from "@/components/community-hub/hub-atmosphere";
 import { DrawerInnerContent } from "@/components/ruixen/drawer-inner-content";
 import { RichDescriptionView } from "@/components/rich-description/rich-description";
 import { isEmptyRichText } from "@/lib/sanitize-html";
-import { coverIndex } from "@/lib/cover-tint";
 import { LiveMedia } from "@/components/live-media/live-media";
-import { communityAction, labelKind } from "@/lib/community";
+import { communityAction, labelKind, leaderLabel } from "@/lib/community";
 import { getInstituicao } from "@/lib/institutions";
 import { routes } from "@/lib/routes";
 import { loginHref } from "@/lib/login-next";
@@ -29,6 +28,7 @@ import { toast } from "@/components/ui/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { useUsuario } from "@/hooks/useUsuario";
 import type { Community } from "@/types";
+import { coverIndexFor } from "@/lib/cover-meta";
 
 export function CommunityPreviewDrawer({
   community,
@@ -120,7 +120,7 @@ export function CommunityPreviewDrawer({
       toast({
         title: community.requires_approval ? "Pedido enviado" : "Você entrou",
         description: community.requires_approval
-          ? "Aguarde o representante aprovar."
+          ? `Aguarde ${leaderLabel(community.kind)} aprovar.`
           : "Bem-vindo à comunidade.",
       });
       if (community.requires_approval) {
@@ -174,7 +174,7 @@ export function CommunityPreviewDrawer({
           className={`aspect-square w-full overflow-hidden rounded-2xl text-left ${
             community.cover_url
               ? "bg-black/40"
-              : `ff-cover-${coverIndex(community.id)}`
+              : `ff-cover-${coverIndexFor(community)}`
           }`}
         >
           {community.cover_url ? (
@@ -247,7 +247,7 @@ export function CommunityPreviewDrawer({
             <p className="mt-3 text-sm text-white/70">
               Aprovação necessária
               <span className="mt-0.5 block text-xs text-white/40">
-                Seu pedido fica sujeito ao representante.
+                {`Quem aprova é ${leaderLabel(community.kind)}.`}
               </span>
             </p>
           ) : null}

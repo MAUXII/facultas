@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import {
   ContextMenu,
   ContextMenuContent,
+  ContextMenuItem,
   ContextMenuTrigger,
 } from "@/components/ui/context-menu";
 import {
@@ -27,10 +28,11 @@ import { SoundLink } from "@/components/sound-link/sound-link";
 import { routes } from "@/lib/routes";
 import { createCommunityWrite } from "@/lib/community-write";
 import { supabaseCommunityWritePort } from "@/lib/community-write-supabase";
-import { coverIndex } from "@/lib/cover-tint";
 import { LiveMedia } from "@/components/live-media/live-media";
 import { labelKind } from "@/lib/community";
 import type { Community } from "@/types";
+import { coverIndexFor } from "@/lib/cover-meta";
+import { GooeyConfirm } from "@/components/ui/gooey-compose";
 
 function membersLabel(count: number | null | undefined) {
   if (count == null) return null;
@@ -47,6 +49,9 @@ export function CommunityCard({ community }: { community: Community }) {
   const { fetchCommunities } = useCommunities();
   const { user } = useAuth();
   const [localCover, setLocalCover] = useState(community.cover_url);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const coverRef = useRef<HTMLDivElement>(null);
+  const isAuthor = Boolean(user && user.id === community.author_id);
 
   const write = createCommunityWrite(supabaseCommunityWritePort());
   const href = routes.communityOf(community);
@@ -55,9 +60,10 @@ export function CommunityCard({ community }: { community: Community }) {
     try {
       setIsSubmitting(true);
       await write.remove(community.id);
+      setConfirmDelete(false);
       toast({
-        title: "Comunidade removida",
-        description: "Ela nao aparece mais na sua lista.",
+        title: "Comunidade excluída",
+        description: `${community.name} não existe mais.`,
       });
       await fetchCommunities();
     } catch {
@@ -122,8 +128,9 @@ export function CommunityCard({ community }: { community: Community }) {
             className="group flex min-w-0 items-center gap-3.5"
           >
             <div
+              ref={coverRef}
               className={`relative h-[4.75rem] w-[4.75rem] shrink-0 overflow-hidden rounded-2xl sm:h-24 sm:w-24 ${
-                localCover ? "bg-black/40" : `ff-cover-${coverIndex(community.id)}`
+                localCover ? "bg-black/40" : `ff-cover-${coverIndexFor(community)}`
               }`}
             >
               {localCover ? (
@@ -155,14 +162,13 @@ export function CommunityCard({ community }: { community: Community }) {
             </div>
           </SoundLink>
         </ContextMenuTrigger>
-        <ContextMenuContent className="w-48 border-white/10 bg-[var(--ff-surface)] text-white">
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-white/10"
-            onClick={() => setIsDialogOpen(true)}
+        <ContextMenuContent className="w-48 border-white/[0.06] bg-[rgba(18,18,20,0.72)] text-white backdrop-blur-xl">
+          <ContextMenuItem
+            className="gap-2 rounded-lg px-2 py-1.5 text-sm focus:bg-white/10 focus:text-white"
+            onSelect={() => setIsDialogOpen(true)}
           >
             <Pencil className="h-4 w-4" strokeWidth={1.5} /> Renomear
-          </button>
+          </ContextMenuItem>
           <label className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-white/10">
             <ImagePlus className="h-4 w-4" />
             {uploadingCover ? "Enviando…" : "Trocar capa"}
@@ -173,16 +179,29 @@ export function CommunityCard({ community }: { community: Community }) {
               onChange={(e) => void handleCover(e)}
             />
           </label>
-          <button
-            type="button"
-            className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-sm text-red-300 hover:bg-white/10"
-            disabled={isSubmitting}
-            onClick={() => void handleDelete()}
-          >
-            <Trash2 className="h-4 w-4" strokeWidth={1.5} /> Excluir
-          </button>
+          {isAuthor ? (
+            <ContextMenuItem
+              className="gap-2 rounded-lg px-2 py-1.5 text-sm text-red-300 focus:bg-white/10 focus:text-red-200"
+              disabled={isSubmitting}
+              onSelect={() => setConfirmDelete(true)}
+            >
+              <Trash2 className="h-4 w-4" strokeWidth={1.5} /> Excluir
+            </ContextMenuItem>
+          ) : null}
         </ContextMenuContent>
       </ContextMenu>
+
+      <GooeyConfirm
+        open={confirmDelete}
+        onClose={() => setConfirmDelete(false)}
+        anchorRef={coverRef}
+        title={`Excluir ${community.name}?`}
+        description="Avisos, materiais e grade somem para todo mundo. Não dá para desfazer."
+        confirmLabel={isSubmitting ? "Excluindo…" : "Excluir"}
+        onConfirm={() => void handleDelete()}
+        busy={isSubmitting}
+        destructive
+      />
 
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="border-white/10 bg-[#151618] text-white">

@@ -8,6 +8,7 @@ export type Profile = {
   campus_id: string | null;
   course: string | null;
   qr_secret: string;
+  is_guest?: boolean;
   created_at: string;
   updated_at: string;
   last_login_at: string | null;
@@ -23,6 +24,10 @@ export type Community = {
   name: string;
   description: string;
   cover_url: string | null;
+  /** Dados da capa (migração 021); validar com parseCoverMeta. */
+  cover_meta?: unknown;
+  /** Sala arquivada (migração 023): só leitura e fora das listas principais. */
+  archived_at?: string | null;
   tags: string[];
   kind?: "turma" | "monitoria" | "grupo" | "evento";
   visibility: "public" | "code" | "private";
@@ -31,6 +36,7 @@ export type Community = {
   avisos_writers?: "admins" | "members";
   materiais_writers?: "admins" | "members";
   link_access?: boolean;
+  guest_access?: "off" | "open" | "approval";
   author_id: string;
   created_at: string;
   updated_at: string;

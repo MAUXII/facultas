@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState, type ComponentType } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   CalendarDays,
   Check,
@@ -9,14 +8,14 @@ import {
   Loader2,
   MoreHorizontal,
   RefreshCw,
+  X,
 } from "lucide-react";
 import {
-  Dialog,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { GlassMenu, GlassMenuItem } from "@/components/ui/glass-menu";
+  GooeyDialog,
+  GooeyMenuItem,
+  GooeyMenuLabel,
+  GooeyPopover,
+} from "@/components/ui/gooey-popover";
 import { useToast } from "@/components/ui/use-toast";
 import { APP_NAME } from "@/lib/brand";
 import {
@@ -26,7 +25,7 @@ import {
 import { feedUrlFromToken, toWebcal } from "@/lib/ics";
 import { cn } from "@/lib/utils";
 
-const MENU_WIDTH = 220;
+const MENU_WIDTH = 280;
 
 type Provider = "google" | "apple" | "other";
 
@@ -107,7 +106,6 @@ type Props = {
 export function CalendarSubscribeButton({ className }: Props) {
   const { toast } = useToast();
   const [menuOpen, setMenuOpen] = useState(false);
-  const [menuPos, setMenuPos] = useState({ x: 0, y: 0 });
   const [provider, setProvider] = useState<Provider | null>(null);
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -118,23 +116,7 @@ export function CalendarSubscribeButton({ className }: Props) {
   const dialogOpen = provider !== null;
   const closeMenu = useCallback(() => setMenuOpen(false), []);
 
-  const openMenu = () => {
-    const r = triggerRef.current?.getBoundingClientRect();
-    if (!r) return;
-    setMenuPos({
-      x: Math.max(8, r.right - MENU_WIDTH),
-      y: r.bottom + 8,
-    });
-    setMenuOpen(true);
-  };
-
-  const toggleMenu = () => {
-    if (menuOpen) {
-      closeMenu();
-      return;
-    }
-    openMenu();
-  };
+  const toggleMenu = () => setMenuOpen((v) => !v);
 
   const feedUrl = useMemo(() => {
     if (!token || typeof window === "undefined") return "";
@@ -244,7 +226,6 @@ export function CalendarSubscribeButton({ className }: Props) {
         ref={triggerRef}
         type="button"
         data-snd="select"
-        data-ff-glass-menu=""
         aria-label="Sincronizar calendário"
         title="Sincronizar calendário"
         aria-haspopup="menu"
@@ -261,148 +242,132 @@ export function CalendarSubscribeButton({ className }: Props) {
         ) : null}
       </button>
 
-      <GlassMenu
+      <GooeyPopover
         open={menuOpen}
-        x={menuPos.x}
-        y={menuPos.y}
         onClose={closeMenu}
+        anchorRef={triggerRef}
         width={MENU_WIDTH}
+        ariaLabel="Sincronizar calendário"
       >
+        <GooeyMenuLabel>Levar a agenda para</GooeyMenuLabel>
         {PROVIDERS.map((item) => (
-          <GlassMenuItem key={item.id} onClick={() => pickProvider(item.id)}>
-            <item.Icon className="size-4 shrink-0 opacity-70" />
-            {item.title}
-          </GlassMenuItem>
+          <GooeyMenuItem
+            key={item.id}
+            icon={<item.Icon className="size-4" />}
+            title={item.title}
+            description={item.subtitle}
+            onClick={() => pickProvider(item.id)}
+          />
         ))}
-      </GlassMenu>
+      </GooeyPopover>
 
-      <Dialog
+      <GooeyDialog
         open={dialogOpen}
-        onOpenChange={(next) => {
-          if (!next) closeDialog();
-        }}
+        onClose={closeDialog}
+        anchorRef={triggerRef}
+        width={480}
+        ariaLabel={active?.title ?? "Sincronizar calendário"}
       >
-        <DialogPortal>
-          <DialogOverlay className="bg-black/40 backdrop-blur-2xl" />
-          <DialogPrimitive.Content
-            aria-describedby={undefined}
-            className="fixed inset-0 z-[261] overflow-y-auto border-0 bg-transparent p-0 shadow-none outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0"
-            onPointerDown={(event) => {
-              if (event.target === event.currentTarget) closeDialog();
-            }}
-          >
-            {active ? (
-              <div className="mx-auto flex min-h-full w-full max-w-[var(--ff-max-width)] flex-col px-5 pb-10 pt-16 sm:px-8">
-                <DialogTitle className="ff-display text-[1.75rem] font-medium leading-tight tracking-tight text-white sm:text-3xl">
-                  {active.title}
-                </DialogTitle>
-                <p className="mt-3 max-w-md text-sm leading-relaxed text-white/40">
-                  {active.subtitle}
-                </p>
+        {active ? (
+          <>
+            <div className="flex items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-3">
+              <span className="inline-flex items-center gap-2 text-[13px] font-medium text-white/80">
+                <active.Icon className="size-4" />
+                {active.title}
+              </span>
+              <button
+                type="button"
+                onClick={closeDialog}
+                aria-label="Fechar"
+                className="-mr-1 rounded-[6px] p-1 text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+              >
+                <X className="h-4 w-4" strokeWidth={1.75} />
+              </button>
+            </div>
 
-                {busy && !token ? (
-                  <div className="mt-14 flex items-center gap-3 text-sm text-white/40">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Preparando seu link…
-                  </div>
-                ) : null}
+            <div className="px-4 py-4">
+              {busy && !token ? (
+                <div className="flex items-center gap-2 py-6 text-[13px] text-white/45">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Preparando seu link…
+                </div>
+              ) : null}
 
-                {token ? (
-                  <div className="mt-10 flex flex-1 flex-col gap-10">
-                    <ol className="space-y-5">
-                      {active.steps.map((step, index) => (
-                        <li
-                          key={step}
-                          className="flex gap-4 text-[15px] leading-relaxed text-white/65"
-                        >
-                          <span className="ff-display w-6 shrink-0 text-xl font-medium text-white/25">
-                            {index + 1}
-                          </span>
-                          <span className="pt-0.5">{step}</span>
-                        </li>
-                      ))}
-                    </ol>
-
-                    <div className="space-y-4">
-                      <p className="text-[11px] font-medium uppercase tracking-[0.16em] text-white/28">
-                        Seu link secreto
-                      </p>
-
-                      <button
-                        type="button"
-                        data-snd="select"
-                        onClick={() => void copyLink()}
-                        className="block w-full rounded-2xl bg-white/[0.05] px-4 py-3.5 text-left transition hover:bg-white/[0.08]"
-                        title="Clique para copiar"
-                      >
-                        <span className="break-all font-mono text-[13px] leading-relaxed text-white/50">
-                          {feedUrl}
+              {token ? (
+                <div className="flex flex-col gap-5">
+                  <ol className="space-y-2.5">
+                    {active.steps.map((step, index) => (
+                      <li key={step} className="flex gap-3 text-[13px] leading-relaxed text-white/70">
+                        <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-white/[0.08] text-[11px] text-white/60">
+                          {index + 1}
                         </span>
-                      </button>
+                        <span>{step}</span>
+                      </li>
+                    ))}
+                  </ol>
 
-                      <div className="flex flex-wrap items-center gap-x-1 gap-y-2">
-                        <button
-                          type="button"
-                          data-snd="select"
-                          onClick={() => void copyLink()}
-                          className="inline-flex h-10 items-center gap-2 rounded-xl bg-white px-4 text-sm font-medium text-black transition hover:bg-white/90"
-                        >
-                          {copied ? (
-                            <Check className="h-4 w-4" strokeWidth={1.75} />
-                          ) : (
-                            <Copy className="h-4 w-4" strokeWidth={1.75} />
-                          )}
-                          {copied ? "Copiado" : "Copiar link"}
-                        </button>
-
-                        {active.id === "apple" ? (
-                          <a
-                            href={webcalUrl}
-                            data-snd="select"
-                            className="inline-flex h-10 items-center rounded-xl px-4 text-sm text-white/55 transition hover:bg-white/[0.06] hover:text-white"
-                          >
-                            Abrir no Apple Calendar
-                          </a>
-                        ) : null}
-
-                        <button
-                          type="button"
-                          data-snd="select"
-                          disabled={busy}
-                          onClick={() => void rotate()}
-                          className="inline-flex h-10 items-center gap-2 rounded-xl px-3 text-sm text-white/30 transition hover:text-white/60 disabled:opacity-50"
-                        >
-                          <RefreshCw
-                            className="h-3.5 w-3.5"
-                            strokeWidth={1.75}
-                          />
-                          Gerar link novo
-                        </button>
-                      </div>
-                    </div>
-
-                    <p className="text-sm leading-relaxed text-white/28">
-                      Não pedimos acesso à sua conta. Seu calendário só vem
-                      buscar os eventos do {APP_NAME}.
-                    </p>
-
-                    <div className="mt-auto flex items-center justify-end gap-2 pt-6">
-                      <button
-                        type="button"
-                        data-snd="select"
-                        onClick={closeDialog}
-                        className="rounded-xl bg-white px-4 py-2 text-sm font-medium text-black transition hover:bg-white/90"
-                      >
-                        Pronto
-                      </button>
-                    </div>
+                  <div>
+                    <p className="mb-1.5 text-[12px] text-white/45">Seu link secreto</p>
+                    <button
+                      type="button"
+                      data-snd="select"
+                      onClick={() => void copyLink()}
+                      className="block w-full rounded-[8px] bg-white/[0.06] px-3 py-2.5 text-left transition hover:bg-white/[0.09]"
+                      title="Clique para copiar"
+                    >
+                      <span className="break-all font-mono text-[12px] leading-relaxed text-white/55">
+                        {feedUrl}
+                      </span>
+                    </button>
                   </div>
+
+                  <p className="text-[12px] leading-relaxed text-white/35">
+                    Não pedimos acesso à sua conta. Seu calendário só vem buscar os eventos do{" "}
+                    {APP_NAME}.
+                  </p>
+                </div>
+              ) : null}
+            </div>
+
+            {token ? (
+              <div className="flex flex-wrap items-center justify-end gap-2 border-t border-white/[0.06] px-4 py-3">
+                <button
+                  type="button"
+                  data-snd="select"
+                  disabled={busy}
+                  onClick={() => void rotate()}
+                  className="mr-auto inline-flex items-center gap-1.5 rounded-[6px] px-2 py-1.5 text-[12px] text-white/40 transition hover:bg-white/[0.06] hover:text-white/70 disabled:opacity-50"
+                >
+                  <RefreshCw className="h-3.5 w-3.5" strokeWidth={1.75} />
+                  Gerar link novo
+                </button>
+                {active.id === "apple" ? (
+                  <a
+                    href={webcalUrl}
+                    data-snd="select"
+                    className="rounded-[6px] px-3 py-1.5 text-[13px] text-white/60 transition hover:bg-white/[0.06] hover:text-white"
+                  >
+                    Abrir no Apple Calendar
+                  </a>
                 ) : null}
+                <button
+                  type="button"
+                  data-snd="select"
+                  onClick={() => void copyLink()}
+                  className="inline-flex items-center gap-1.5 rounded-[6px] bg-white px-3.5 py-1.5 text-[13px] font-semibold text-black transition hover:bg-white/90"
+                >
+                  {copied ? (
+                    <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                  ) : (
+                    <Copy className="h-3.5 w-3.5" strokeWidth={2} />
+                  )}
+                  {copied ? "Copiado" : "Copiar link"}
+                </button>
               </div>
             ) : null}
-          </DialogPrimitive.Content>
-        </DialogPortal>
-      </Dialog>
+          </>
+        ) : null}
+      </GooeyDialog>
     </>
   );
 }

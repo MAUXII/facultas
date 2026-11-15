@@ -21,7 +21,10 @@
   --ff-ink: #ffffff;
   --ff-muted: #888888;
   --ff-line: rgba(255, 255, 255, 0.08);
+  /* Flat: hairline quase invisível (referência visual minimal) */
+  --ff-line-flat: rgba(255, 255, 255, 0.035);
   --ff-radius: 12px;
+  --ff-radius-flat: 10px;
   --ff-max-width: 820px; /* 51.25rem */
   --ff-max-width-wide: 960px;
   --ff-nav-w: 820px;
@@ -29,6 +32,7 @@
   --ff-content-pad-x: 16px;
   --ff-scroll-thumb: rgba(255, 255, 255, 0.2);
   --ff-scroll-thumb-hover: rgba(255, 255, 255, 0.34);
+  --ff-switch-on: #6b6560;
 }
 
 html {
@@ -265,18 +269,73 @@ body::-webkit-scrollbar {
   box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.55);
 }
 
-/* Apple-minimal flat surface — no blur / refraction */
+/* Flat default (sem capa): cinza quente, não pretão. Com capa, HubAtmosphere sobrescreve. */
+html[data-ff-surface="flat"] {
+  --ff-bg: #17151a;
+  --ff-surface: #221f26;
+  --ff-surface-hover: #2a2730;
+  --ff-line: var(--ff-line-flat);
+  --ff-line-flat: rgba(255, 255, 255, 0.05);
+  --ff-switch-on: #6a6270;
+}
+
 html[data-ff-surface="flat"] .ff-glass {
-  background: var(--ff-surface);
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
+  background: rgba(255, 255, 255, 0.08);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
   box-shadow: none;
+  border-color: var(--ff-line-flat);
 }
 
 .ff-surface-flat {
-  background: var(--ff-surface);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.08);
+  border: 0;
   box-shadow: none;
+  border-radius: var(--ff-radius-flat);
+  backdrop-filter: blur(20px) saturate(1.5);
+  -webkit-backdrop-filter: blur(20px) saturate(1.5);
+}
+
+/* Bordas white/* no flat → hairline tingida */
+html[data-ff-surface="flat"] [class*="border-white"] {
+  border-color: var(--ff-line-flat) !important;
+}
+
+/* Inputs em cards — título .ff-display / bare fica transparente */
+html[data-ff-surface="flat"] input:not([type="checkbox"]):not([type="radio"]):not(.ff-display):not([data-ff-bare-input]),
+html[data-ff-surface="flat"] textarea:not(.ff-display):not([data-ff-bare-input]),
+html[data-ff-surface="flat"] select:not([data-ff-bare-input]) {
+  border-color: var(--ff-line-flat) !important;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+html[data-ff-surface="flat"] input.ff-display,
+html[data-ff-surface="flat"] input[data-ff-bare-input],
+html[data-ff-surface="flat"] textarea.ff-display,
+html[data-ff-surface="flat"] textarea[data-ff-bare-input] {
+  background-color: transparent !important;
+  border-color: transparent !important;
+}
+
+html[data-ff-surface="flat"] .rounded-2xl {
+  border-radius: var(--ff-radius-flat);
+}
+
+html[data-ff-surface="flat"] .rounded-xl {
+  border-radius: calc(var(--ff-radius-flat) - 2px);
+}
+
+/* GlassMenu flat = Frost GlassCN (neutro, sem --ff-surface) */
+html[data-ff-surface="flat"] [data-ff-glass-menu-panel] {
+  border: 1px solid rgba(255, 255, 255, 0.1) !important;
+  background: rgba(0, 0, 0, 0.35) !important;
+  box-shadow: 0 2px 20px rgba(0, 0, 0, 0.3) !important;
+  backdrop-filter: blur(16px) saturate(1.6) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(1.6) !important;
+}
+
+html[data-ff-atmosphere="tint"] body {
+  background-color: var(--ff-bg);
 }
 
 @keyframes liquid-drift {

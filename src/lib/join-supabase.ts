@@ -1,10 +1,12 @@
 import { createClient } from "@/lib/supabase/client";
+import { asGuestAccess } from "@/lib/guest";
 import type { JoinPort, MemberStatus } from "@/lib/join";
 
 type CodeRow = {
   id: string;
   public_id?: string;
   requires_approval: boolean;
+  guest_access?: string;
 };
 
 function asRow(data: unknown): CodeRow | null {
@@ -17,6 +19,8 @@ function asRow(data: unknown): CodeRow | null {
     id: rec.id,
     public_id: typeof rec.public_id === "string" ? rec.public_id : undefined,
     requires_approval: rec.requires_approval === true,
+    guest_access:
+      typeof rec.guest_access === "string" ? rec.guest_access : undefined,
   };
 }
 
@@ -25,10 +29,9 @@ export function supabaseJoinPort(): JoinPort {
 
   return {
     async findByCode(code) {
-      const { data, error } = await supabase.rpc(
-        "community_by_access_code",
-        { p_code: code },
-      );
+      const { data, error } = await supabase.rpc("community_by_access_code", {
+        p_code: code,
+      });
       if (error) throw error;
       const row = asRow(data);
       if (!row) return null;
@@ -36,6 +39,7 @@ export function supabaseJoinPort(): JoinPort {
         id: row.id,
         publicId: row.public_id || row.id,
         requiresApproval: row.requires_approval,
+        guestAccess: asGuestAccess(row.guest_access),
       };
     },
 

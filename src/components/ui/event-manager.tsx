@@ -1,17 +1,9 @@
 "use client";
 
-import React, { useCallback, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { Badge } from "@/components/ui/badge";
 import {
-  Check,
   ChevronLeft,
   ChevronRight,
   Plus,
@@ -22,18 +14,14 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
-import { GlassCard } from "@/components/ui/glasscn/glass-card";
 import {
-  GlassMenu,
-  GlassMenuItem,
-  GlassMenuSep,
-} from "@/components/ui/glass-menu";
+  GooeyMenuItem,
+  GooeyMenuLabel,
+  GooeyMenuSep,
+  GooeyPopover,
+} from "@/components/ui/gooey-popover";
+import { EventCompose, type EventDraft } from "@/components/calendar/event-compose";
 import { MagneticTabs } from "@/components/ruixen/magnetic-tabs";
-import {
-  CalendarScheduler,
-  schedulerValueToDate,
-  type SchedulerStep,
-} from "@/components/ruixen/calendar-scheduler";
 
 export interface Event {
   id: string;
@@ -47,7 +35,7 @@ export interface Event {
   tags?: string[];
   /** Data mora fora desta agenda: aviso da comunidade ou sessão com presença. */
   locked?: boolean;
-  lockKind?: "aviso" | "sessao";
+  lockKind?: "aviso" | "sessao" | "aula";
 }
 
 export interface EventManagerProps {
@@ -68,6 +56,8 @@ export interface EventManagerProps {
   availableTags?: string[];
   /** Ações na barra à direita (ex.: sincronizar calendário). */
   headerActions?: React.ReactNode;
+  /** Tipos que só existem vindos de fora (aviso, sessão): filtram, mas não se criam. */
+  lockedCategories?: string[];
 }
 
 type CalendarView = "month" | "week" | "day" | "list";
@@ -97,30 +87,6 @@ const VIEW_TAB_ITEMS = [
   { value: "list", label: "Lista" },
 ] as const;
 
-function createEmptyEvent(
-  colors: { value: string }[],
-  categories: string[],
-): Partial<Event> {
-  return {
-    title: "",
-    description: "",
-    color: colors[0]?.value ?? "blue",
-    category: categories[0],
-    tags: [],
-  };
-}
-
-function formatScheduleLabel(date?: Date | null) {
-  if (!date) return "escolher";
-  return date.toLocaleString("pt-BR", {
-    weekday: "short",
-    day: "2-digit",
-    month: "short",
-    hour: "2-digit",
-    minute: "2-digit",
-  });
-}
-
 export function EventManager({
   events: initialEvents = [],
   onEventCreate,
@@ -139,26 +105,21 @@ export function EventManager({
     "Entrega",
   ],
   headerActions,
+  lockedCategories = ["Aviso", "Sessão"],
 }: EventManagerProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [view, setView] = useState<CalendarView>(defaultView);
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [peekEvent, setPeekEvent] = useState<Event | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isCreating, setIsCreating] = useState(false);
   const [draggedEvent, setDraggedEvent] = useState<Event | null>(null);
-  const [newEvent, setNewEvent] = useState<Partial<Event>>(() =>
-    createEmptyEvent(colors, categories),
-  );
+  const newEventRef = useRef<HTMLButtonElement>(null);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
-  const [scheduleTarget, setScheduleTarget] = useState<"start" | "end" | null>(
-    null,
-  );
-  const [scheduleStep, setScheduleStep] = useState<SchedulerStep>("month");
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -212,127 +173,27 @@ export function EventManager({
 
   const closeEventDialog = () => {
     setIsDialogOpen(false);
-    setIsCreating(false);
     setSelectedEvent(null);
-    setNewEvent(createEmptyEvent(colors, categories));
-    setScheduleTarget(null);
-    setScheduleStep("month");
   };
 
-  const backOrCloseSchedule = () => {
-    if (scheduleTarget) {
-      setScheduleTarget(null);
-      return;
-    }
-    closeEventDialog();
-  };
-
-  const openSchedule = (target: "start" | "end") => {
-    if (!isCreating && selectedEvent?.locked) return;
-    setScheduleTarget(target);
-    setScheduleStep(target === "end" ? "time" : "month");
-  };
-
-  const scheduleSeedDate = useMemo(() => {
-    if (scheduleTarget === "end") {
-      return isCreating
-        ? (newEvent.endTime ?? newEvent.startTime ?? null)
-        : (selectedEvent?.endTime ?? selectedEvent?.startTime ?? null);
-    }
-    return isCreating
-      ? (newEvent.startTime ?? null)
-      : (selectedEvent?.startTime ?? null);
-  }, [
-    scheduleTarget,
-    isCreating,
-    newEvent.endTime,
-    newEvent.startTime,
-    selectedEvent?.endTime,
-    selectedEvent?.startTime,
-  ]);
-
-  const scheduleTitle =
-    scheduleStep === "month"
-      ? "Mês"
-      : scheduleStep === "day"
-        ? "Dia"
-        : scheduleTarget === "end"
-          ? "Término"
-          : "Início";
-
-  const applyScheduleValue = useCallback(
-    (value: { date: string; time: string }) => {
-      const date = schedulerValueToDate(value);
-      if (!date || !scheduleTarget) return;
-
-      const pickedStart = scheduleTarget === "start";
-
-      if (isCreating) {
-        setNewEvent((prev) => {
-          if (pickedStart) {
-            const end =
-              prev.endTime && prev.endTime.getTime() > date.getTime()
-                ? prev.endTime
-                : new Date(date.getTime() + 60 * 60 * 1000);
-            return { ...prev, startTime: date, endTime: end };
-          }
-          return { ...prev, endTime: date };
-        });
-      } else {
-        setSelectedEvent((prev) => {
-          if (!prev) return prev;
-          if (pickedStart) {
-            const end =
-              prev.endTime.getTime() > date.getTime()
-                ? prev.endTime
-                : new Date(date.getTime() + 60 * 60 * 1000);
-            return { ...prev, startTime: date, endTime: end };
-          }
-          return { ...prev, endTime: date };
-        });
+  const submitEvent = useCallback(
+    async (draft: EventDraft) => {
+      if (selectedEvent) {
+        if (selectedEvent.locked) return;
+        const updated: Event = { ...selectedEvent, ...draft };
+        setEvents((prev) => prev.map((e) => (e.id === updated.id ? updated : e)));
+        closeEventDialog();
+        await onEventUpdate?.(updated.id, updated);
+        return;
       }
-
-      // Cascata igual à grade: início → término → formulário
-      if (pickedStart) {
-        setScheduleTarget("end");
-        setScheduleStep("time");
-      } else {
-        setScheduleTarget(null);
-        setScheduleStep("month");
-      }
+      const event: Event = { id: crypto.randomUUID(), ...draft };
+      setEvents((prev) => [...prev, event]);
+      closeEventDialog();
+      await onEventCreate?.(event);
     },
-    [isCreating, scheduleTarget],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [selectedEvent, onEventCreate, onEventUpdate],
   );
-
-  const handleCreateEvent = useCallback(async () => {
-    if (!newEvent.title || !newEvent.startTime || !newEvent.endTime) return;
-
-    const event: Event = {
-      id: crypto.randomUUID(),
-      title: newEvent.title,
-      description: newEvent.description,
-      startTime: newEvent.startTime,
-      endTime: newEvent.endTime,
-      color: newEvent.color || colors[0].value,
-      category: newEvent.category,
-      attendees: newEvent.attendees,
-      tags: newEvent.tags || [],
-    };
-
-    setEvents((prev) => [...prev, event]);
-    closeEventDialog();
-    await onEventCreate?.(event);
-  }, [newEvent, colors, onEventCreate]);
-
-  const handleUpdateEvent = useCallback(async () => {
-    if (!selectedEvent || selectedEvent.locked) return;
-
-    setEvents((prev) =>
-      prev.map((e) => (e.id === selectedEvent.id ? selectedEvent : e)),
-    );
-    closeEventDialog();
-    await onEventUpdate?.(selectedEvent.id, selectedEvent);
-  }, [selectedEvent, onEventUpdate]);
 
   const handleDeleteEvent = useCallback(
     async (id: string) => {
@@ -345,11 +206,36 @@ export function EventManager({
     [onEventDelete, events],
   );
 
+  // O detalhe nasce do cartão clicado (o mesmo evento pode aparecer em vários dias).
+  const peekAnchorRef = useRef<HTMLElement | null>(null);
+  const lastPressed = useRef<HTMLElement | null>(null);
+
+  const openPeekEvent = (event: Event) => {
+    const pressed = lastPressed.current;
+    peekAnchorRef.current =
+      pressed?.dataset.eventId === event.id
+        ? pressed
+        : document.querySelector<HTMLElement>(`[data-event-id="${event.id}"]`);
+    setPeekEvent((current) => (current?.id === event.id ? null : event));
+  };
+
+  const closePeekEvent = () => {
+    setPeekEvent(null);
+  };
+
   const openEditEvent = (event: Event) => {
-    setIsCreating(false);
+    if (event.locked) {
+      setPeekEvent(event);
+      return;
+    }
+    setPeekEvent(null);
     setSelectedEvent(event);
-    setScheduleTarget(null);
     setIsDialogOpen(true);
+  };
+
+  const editFromPeek = () => {
+    if (!peekEvent || peekEvent.locked) return;
+    openEditEvent(peekEvent);
   };
 
   const handleDragStart = useCallback((event: Event) => {
@@ -413,28 +299,6 @@ export function EventManager({
     [colors],
   );
 
-  const toggleTag = (tag: string, creating: boolean) => {
-    if (creating) {
-      setNewEvent((prev) => ({
-        ...prev,
-        tags: prev.tags?.includes(tag)
-          ? prev.tags.filter((t) => t !== tag)
-          : [...(prev.tags || []), tag],
-      }));
-    } else {
-      setSelectedEvent((prev) =>
-        prev
-          ? {
-              ...prev,
-              tags: prev.tags?.includes(tag)
-                ? prev.tags.filter((t) => t !== tag)
-                : [...(prev.tags || []), tag],
-            }
-          : null,
-      );
-    }
-  };
-
   const headerTitle = useMemo(() => {
     if (view === "month") {
       return currentDate.toLocaleDateString("pt-BR", {
@@ -459,10 +323,16 @@ export function EventManager({
     return "Todos os eventos";
   }, [view, currentDate]);
 
-  const formLocked = !isCreating && selectedEvent?.locked === true;
-
   return (
-    <div className={cn("flex flex-col gap-8", className)}>
+    <div
+      className={cn("flex flex-col gap-8", className)}
+      onPointerDownCapture={(e) => {
+        lastPressed.current = (e.target as HTMLElement).closest<HTMLElement>("[data-event-id]");
+      }}
+      onKeyDownCapture={(e) => {
+        lastPressed.current = (e.target as HTMLElement).closest<HTMLElement>("[data-event-id]");
+      }}
+    >
       <div className="flex flex-col gap-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <h1 className="min-w-0 text-[28px] font-semibold tracking-tight text-white">
@@ -498,13 +368,10 @@ export function EventManager({
             </Button>
             {headerActions}
             <Button
+              ref={newEventRef}
               data-snd="select"
               onClick={() => {
-                setIsCreating(true);
                 setSelectedEvent(null);
-                setNewEvent(createEmptyEvent(colors, categories));
-                setScheduleTarget("start");
-                setScheduleStep("month");
                 setIsDialogOpen(true);
               }}
               className="ml-1 h-10 bg-white px-4 text-black shadow-none hover:bg-white/90"
@@ -516,7 +383,7 @@ export function EventManager({
         </div>
 
         <MagneticTabs
-          defaultValue={view}
+          value={view}
           items={[...VIEW_TAB_ITEMS]}
           onChange={(value) => {
             if (isCalendarView(value)) setView(value);
@@ -535,6 +402,7 @@ export function EventManager({
             <input
               type="search"
               placeholder="Buscar eventos..."
+              data-ff-bare-input=""
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="h-full w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
@@ -554,20 +422,24 @@ export function EventManager({
           clearFilters={clearFilters}
           hasActiveFilters={hasActiveFilters}
           activeFilterCount={activeFilterCount}
-          getColorClasses={getColorClasses}
         />
       </div>
 
       {/* Visualizações do calendário */}
       {view === "month" && (
         <MonthView
+          onDayOpen={(date) => {
+            setCurrentDate(date);
+            setView("day");
+          }}
           currentDate={currentDate}
           events={filteredEvents}
-          onEventClick={openEditEvent}
+          onEventClick={openPeekEvent}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
+          peekEventId={peekEvent?.id}
         />
       )}
 
@@ -575,11 +447,12 @@ export function EventManager({
         <WeekView
           currentDate={currentDate}
           events={filteredEvents}
-          onEventClick={openEditEvent}
+          onEventClick={openPeekEvent}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
+          peekEventId={peekEvent?.id}
         />
       )}
 
@@ -587,336 +460,172 @@ export function EventManager({
         <DayView
           currentDate={currentDate}
           events={filteredEvents}
-          onEventClick={openEditEvent}
+          onEventClick={openPeekEvent}
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
           onDrop={handleDrop}
           getColorClasses={getColorClasses}
+          peekEventId={peekEvent?.id}
         />
       )}
 
       {view === "list" && (
         <ListView
           events={filteredEvents}
-          onEventClick={openEditEvent}
+          onEventClick={openPeekEvent}
           getColorClasses={getColorClasses}
+          peekEventId={peekEvent?.id}
         />
       )}
 
-      {/* Diálogo de evento — cascata igual à grade (início → término → form) */}
-      <Dialog
+      <EventDetail
+        event={peekEvent}
+        anchorRef={peekAnchorRef}
+        getColorClasses={getColorClasses}
+        onClose={closePeekEvent}
+        onEdit={editFromPeek}
+      />
+
+      <EventCompose
         open={isDialogOpen}
-        onOpenChange={(next) => {
-          if (!next) backOrCloseSchedule();
-        }}
-      >
-        <DialogPortal>
-          <DialogOverlay className="bg-black/40 backdrop-blur-2xl" />
-          <DialogPrimitive.Content
-            aria-describedby={undefined}
-            className="fixed inset-0 z-[261] overflow-y-auto border-0 bg-transparent p-0 shadow-none outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0"
-            onPointerDown={(event) => {
-              if (event.target === event.currentTarget) backOrCloseSchedule();
-            }}
-          >
-            <div className="mx-auto flex min-h-full w-full max-w-[var(--ff-max-width)] flex-col px-5 pb-10 pt-16 sm:px-8">
-              <DialogTitle className="ff-display text-4xl font-medium tracking-tight text-white/50 md:text-5xl">
-                {scheduleTarget
-                  ? scheduleTitle
-                  : isCreating
-                    ? "Novo evento"
-                    : formLocked
-                      ? selectedEvent?.lockKind === "sessao"
-                        ? "Sessão"
-                        : "Aviso"
-                      : "Editar evento"}
-              </DialogTitle>
-
-              {scheduleTarget ? (
-                <>
-                  <CalendarScheduler
-                    key={`${scheduleTarget}-${scheduleSeedDate?.getTime() ?? "new"}`}
-                    initialDate={scheduleSeedDate}
-                    startStep={
-                      scheduleTarget === "end" && scheduleSeedDate
-                        ? "time"
-                        : "month"
-                    }
-                    startHour={7}
-                    endHour={22}
-                    interval={30}
-                    onStepChange={setScheduleStep}
-                    onConfirm={applyScheduleValue}
-                  />
-                  <div className="mt-auto flex items-center justify-end pt-10">
-                    <button
-                      type="button"
-                      data-snd="select"
-                      onClick={backOrCloseSchedule}
-                      className="rounded-xl px-4 py-2 text-sm text-white/50 transition hover:text-white"
-                    >
-                      Voltar
-                    </button>
-                  </div>
-                </>
-              ) : (
-                <form
-                  className="mt-12 flex flex-1 flex-col gap-8"
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    if (formLocked) return;
-                    void (isCreating
-                      ? handleCreateEvent()
-                      : handleUpdateEvent());
-                  }}
-                >
-                  <div className="flex flex-wrap items-baseline gap-x-1.5 gap-y-2 select-none">
-                    <span className="px-0.5 text-[22px] font-light text-white/35">
-                      de
-                    </span>
-                    <button
-                      type="button"
-                      data-snd="select"
-                      disabled={formLocked}
-                      onClick={() => openSchedule("start")}
-                      className={cn(
-                        "rounded-[10px] px-2.5 py-0.5 text-[28px] leading-snug transition",
-                        (isCreating
-                          ? newEvent.startTime
-                          : selectedEvent?.startTime)
-                          ? "text-white hover:bg-white/10"
-                          : "text-white/35 hover:bg-white/10 hover:text-white/60",
-                      )}
-                    >
-                      {formatScheduleLabel(
-                        isCreating
-                          ? newEvent.startTime
-                          : selectedEvent?.startTime,
-                      )}
-                    </button>
-                    <span className="px-0.5 text-[22px] font-light text-white/35">
-                      até
-                    </span>
-                    <button
-                      type="button"
-                      data-snd="select"
-                      disabled={formLocked}
-                      onClick={() => openSchedule("end")}
-                      className={cn(
-                        "rounded-[10px] px-2.5 py-0.5 text-[28px] leading-snug transition",
-                        (isCreating
-                          ? newEvent.endTime
-                          : selectedEvent?.endTime)
-                          ? "text-white hover:bg-white/10"
-                          : "text-white/35 hover:bg-white/10 hover:text-white/60",
-                      )}
-                    >
-                      {formatScheduleLabel(
-                        isCreating
-                          ? newEvent.endTime
-                          : selectedEvent?.endTime,
-                      )}
-                    </button>
-                  </div>
-
-                  {formLocked ? (
-                    <p className="text-sm text-white/75">
-                      {selectedEvent?.lockKind === "sessao"
-                        ? "Presença marcada. A data mora na sessão, não muda aqui."
-                        : "Vem de um aviso da comunidade. A data não muda aqui."}
-                    </p>
-                  ) : null}
-
-                  <input
-                    readOnly={formLocked}
-                    value={
-                      isCreating
-                        ? newEvent.title || ""
-                        : selectedEvent?.title || ""
-                    }
-                    onChange={(e) =>
-                      isCreating
-                        ? setNewEvent((prev) => ({
-                            ...prev,
-                            title: e.target.value,
-                          }))
-                        : setSelectedEvent((prev) =>
-                            prev ? { ...prev, title: e.target.value } : null,
-                          )
-                    }
-                    placeholder="Título do evento"
-                    autoFocus
-                    className="ff-display w-full border-0 bg-transparent text-4xl font-medium text-white outline-none placeholder:text-white/25 md:text-5xl"
-                  />
-
-                  <input
-                    readOnly={formLocked}
-                    value={
-                      isCreating
-                        ? newEvent.description || ""
-                        : selectedEvent?.description || ""
-                    }
-                    onChange={(e) =>
-                      isCreating
-                        ? setNewEvent((prev) => ({
-                            ...prev,
-                            description: e.target.value,
-                          }))
-                        : setSelectedEvent((prev) =>
-                            prev
-                              ? { ...prev, description: e.target.value }
-                              : null,
-                          )
-                    }
-                    placeholder="Descrição (opcional)"
-                    className="w-full bg-transparent text-lg text-white outline-none placeholder:text-white/30"
-                  />
-
-                  <div className="flex flex-wrap gap-x-4 gap-y-2 pt-2">
-                    {categories.map((cat) => {
-                      const active =
-                        (isCreating
-                          ? newEvent.category
-                          : selectedEvent?.category) === cat;
-                      return (
-                        <button
-                          key={cat}
-                          type="button"
-                          data-snd="select"
-                          disabled={formLocked}
-                          onClick={() =>
-                            isCreating
-                              ? setNewEvent((prev) => ({
-                                  ...prev,
-                                  category: cat,
-                                }))
-                              : setSelectedEvent((prev) =>
-                                  prev ? { ...prev, category: cat } : null,
-                                )
-                          }
-                          className={cn(
-                            "text-sm transition",
-                            active
-                              ? "text-white"
-                              : "text-white/30 hover:text-white/60",
-                          )}
-                        >
-                          {cat}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {colors.map((color) => {
-                      const active =
-                        (isCreating
-                          ? newEvent.color
-                          : selectedEvent?.color) === color.value;
-                      return (
-                        <button
-                          key={color.value}
-                          type="button"
-                          data-snd="select"
-                          aria-label={color.name}
-                          disabled={formLocked}
-                          onClick={() =>
-                            isCreating
-                              ? setNewEvent((prev) => ({
-                                  ...prev,
-                                  color: color.value,
-                                }))
-                              : setSelectedEvent((prev) =>
-                                  prev
-                                    ? { ...prev, color: color.value }
-                                    : null,
-                                )
-                          }
-                          className={cn(
-                            "h-7 w-7 rounded-full transition",
-                            color.bg,
-                            active
-                              ? "ring-2 ring-white ring-offset-2 ring-offset-[var(--ff-bg)]"
-                              : "opacity-55 hover:opacity-90",
-                          )}
-                        />
-                      );
-                    })}
-                  </div>
-
-                  <div className="flex flex-wrap gap-2">
-                    {availableTags.map((tag) => {
-                      const isSelected = isCreating
-                        ? newEvent.tags?.includes(tag)
-                        : selectedEvent?.tags?.includes(tag);
-                      return (
-                        <button
-                          key={tag}
-                          type="button"
-                          data-snd="select"
-                          disabled={formLocked}
-                          onClick={() => toggleTag(tag, isCreating)}
-                          className={cn(
-                            "rounded-full px-3 py-1 text-xs transition",
-                            isSelected
-                              ? "bg-white text-black"
-                              : "bg-white/[0.06] text-white/50 hover:text-white/80",
-                          )}
-                        >
-                          {tag}
-                        </button>
-                      );
-                    })}
-                  </div>
-
-                  <div className="mt-auto flex items-center justify-end gap-2 pt-10">
-                    {!isCreating && !formLocked ? (
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (selectedEvent)
-                            void handleDeleteEvent(selectedEvent.id);
-                        }}
-                        className="mr-auto rounded-xl px-4 py-2 text-sm text-white/40 transition hover:text-white"
-                      >
-                        Excluir
-                      </button>
-                    ) : null}
-                    <button
-                      type="button"
-                      onClick={closeEventDialog}
-                      className="rounded-xl px-4 py-2 text-sm text-white/50 transition hover:text-white"
-                    >
-                      {formLocked ? "Fechar" : "Cancelar"}
-                    </button>
-                    {formLocked ? null : (
-                      <button
-                        type="submit"
-                        data-snd="select"
-                        disabled={
-                          isCreating
-                            ? !newEvent.title?.trim() ||
-                              !newEvent.startTime ||
-                              !newEvent.endTime
-                            : !selectedEvent?.title?.trim()
-                        }
-                        className="rounded-xl bg-white px-5 py-2 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-60"
-                      >
-                        {isCreating ? "Criar" : "Salvar"}
-                      </button>
-                    )}
-                  </div>
-                </form>
-              )}
-            </div>
-          </DialogPrimitive.Content>
-        </DialogPortal>
-      </Dialog>
+        onClose={closeEventDialog}
+        anchorRef={selectedEvent ? undefined : newEventRef}
+        editing={
+          selectedEvent
+            ? {
+                id: selectedEvent.id,
+                title: selectedEvent.title,
+                description: selectedEvent.description ?? "",
+                startTime: selectedEvent.startTime,
+                endTime: selectedEvent.endTime,
+                color: selectedEvent.color,
+                category: selectedEvent.category,
+                tags: selectedEvent.tags ?? [],
+              }
+            : null
+        }
+        categories={categories.filter((c) => !lockedCategories.includes(c))}
+        colors={colors}
+        tags={availableTags}
+        onSubmit={(draft) => void submitEvent(draft)}
+        onDelete={(id) => void handleDeleteEvent(id)}
+      />
     </div>
   );
 }
 
-const FILTERS_MENU_WIDTH = 224;
+function formatPeekWhen(start: Date, end: Date) {
+  const day = start.toLocaleDateString("pt-BR", {
+    weekday: "long",
+    day: "2-digit",
+    month: "long",
+  });
+  const t0 = start.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  const t1 = end.toLocaleTimeString("pt-BR", {
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+  return `${day.charAt(0).toUpperCase()}${day.slice(1)} · ${t0} – ${t1}`;
+}
+
+function EventDetail({
+  event,
+  anchorRef,
+  getColorClasses,
+  onClose,
+  onEdit,
+}: {
+  event: Event | null;
+  anchorRef: React.RefObject<HTMLElement | null>;
+  getColorClasses: (color: string) => { bg: string; text: string; name: string };
+  onClose: () => void;
+  onEdit: () => void;
+}) {
+  // Mantém o último evento enquanto o painel fecha.
+  const [shown, setShown] = useState<Event | null>(event);
+  useEffect(() => {
+    if (event) setShown(event);
+  }, [event]);
+  const e = event ?? shown;
+
+  const kindLabel =
+    e?.lockKind === "sessao"
+      ? "Sessão"
+      : e?.lockKind === "aviso"
+        ? "Aviso da sala"
+        : e?.lockKind === "aula"
+          ? "Aula da grade"
+          : e?.category || "Evento";
+  const kindHint =
+    e?.lockKind === "sessao"
+      ? "Presença marcada. A data mora na sessão."
+      : e?.lockKind === "aviso"
+        ? "Para mudar, edite o aviso na sala."
+        : e?.lockKind === "aula"
+          ? "Toda semana. Para mudar, edite a grade da turma."
+          : null;
+
+  return (
+    <GooeyPopover
+      open={Boolean(event)}
+      onClose={onClose}
+      anchorRef={anchorRef}
+      width={320}
+      align="start"
+      role="dialog"
+      ariaLabel={e?.title ?? "Evento"}
+    >
+      {e ? (
+        <div className="p-2">
+          <div className="flex items-center gap-2 text-[12px] text-white/50">
+            <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", getColorClasses(e.color).bg)} />
+            {kindLabel}
+          </div>
+          <h2 className="mt-1.5 text-[15px] font-semibold leading-snug text-white">
+            {e.title}
+          </h2>
+          <div className="mt-2 flex items-start gap-2 text-[13px] text-white/70">
+            <Clock className="mt-0.5 h-3.5 w-3.5 shrink-0 text-white/40" />
+            <span>{formatPeekWhen(e.startTime, e.endTime)}</span>
+          </div>
+          {e.description ? (
+            <p className="mt-2 whitespace-pre-line text-[13px] leading-relaxed text-white/60">
+              {e.description}
+            </p>
+          ) : null}
+          {e.tags && e.tags.length > 0 ? (
+            <div className="mt-3 flex flex-wrap gap-1">
+              {e.tags.map((tag) => (
+                <span
+                  key={tag}
+                  className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[11px] text-white/60"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          ) : null}
+          {kindHint ? <p className="mt-3 text-[12px] text-white/40">{kindHint}</p> : null}
+          {!e.locked ? (
+            <button
+              type="button"
+              data-snd="select"
+              onClick={onEdit}
+              className="mt-3 w-full rounded-[6px] bg-white py-1.5 text-[13px] font-semibold text-black transition hover:bg-white/90"
+            >
+              Editar
+            </button>
+          ) : null}
+        </div>
+      ) : null}
+    </GooeyPopover>
+  );
+}
+
+const FILTERS_MENU_WIDTH = 260;
 
 function FiltersMenu({
   colors,
@@ -931,7 +640,6 @@ function FiltersMenu({
   clearFilters,
   hasActiveFilters,
   activeFilterCount,
-  getColorClasses,
 }: {
   colors: { name: string; value: string; bg: string; text: string }[];
   tags: string[];
@@ -945,156 +653,117 @@ function FiltersMenu({
   clearFilters: () => void;
   hasActiveFilters: boolean;
   activeFilterCount: number;
-  getColorClasses: (colorValue: string) => {
-    name: string;
-    value: string;
-    bg: string;
-    text: string;
-  };
 }) {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
-  const [pos, setPos] = useState({ x: 0, y: 0 });
-
-  const close = useCallback(() => setOpen(false), []);
-
-  const toggle = () => {
-    if (open) {
-      close();
-      return;
-    }
-    const r = triggerRef.current?.getBoundingClientRect();
-    if (!r) return;
-    setPos({
-      x: Math.max(8, r.right - FILTERS_MENU_WIDTH),
-      y: r.bottom + 8,
-    });
-    setOpen(true);
-  };
 
   const toggleIn = (
     value: string,
-    selected: string[],
     setSelected: React.Dispatch<React.SetStateAction<string[]>>,
-  ) => {
+  ) =>
     setSelected((prev) =>
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
     );
-  };
+
+  const label = (
+    <span className="inline-flex h-12 items-center gap-2 px-4 text-sm">
+      <Filter className="h-4 w-4" />
+      Filtros
+      {activeFilterCount > 0 && (
+        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs font-medium text-white">
+          {activeFilterCount}
+        </span>
+      )}
+    </span>
+  );
 
   return (
     <>
       <button
         ref={triggerRef}
         type="button"
-        data-ff-glass-menu=""
         aria-haspopup="menu"
         aria-expanded={open}
-        onClick={toggle}
+        aria-label={activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : "Filtros"}
+        onClick={() => setOpen((v) => !v)}
         className="shrink-0 rounded-2xl border-0 bg-transparent p-0 text-white/70 outline-none transition hover:text-white"
       >
-        <LiquidGlass className="rounded-2xl">
-          <span className="inline-flex h-12 items-center gap-2 px-4 text-sm">
-            <Filter className="h-4 w-4" />
-            Filtros
-            {activeFilterCount > 0 && (
-              <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs font-medium text-white">
-                {activeFilterCount}
-              </span>
-            )}
-          </span>
-        </LiquidGlass>
+        <LiquidGlass className="rounded-2xl">{label}</LiquidGlass>
       </button>
 
-      <GlassMenu
+      <GooeyPopover
         open={open}
-        x={pos.x}
-        y={pos.y}
-        onClose={close}
+        onClose={() => setOpen(false)}
+        anchorRef={triggerRef}
         width={FILTERS_MENU_WIDTH}
-        className="max-h-[min(280px,45vh)] overflow-y-auto overscroll-contain"
+        ariaLabel="Filtros"
+        className="max-h-[min(420px,60vh)] overflow-y-auto overscroll-contain [scrollbar-color:rgba(255,255,255,0.15)_transparent] [scrollbar-width:thin]"
       >
-        <p className="px-3 pb-1 pt-2 text-[11px] font-medium uppercase tracking-wide text-white/35">
-          Cores
-        </p>
-        {colors.map((color) => {
-          const resolved = getColorClasses(color.value);
-          const checked = selectedColors.includes(color.value);
-          return (
-            <GlassMenuItem
-              key={color.value}
-              onClick={() =>
-                toggleIn(color.value, selectedColors, setSelectedColors)
-              }
-              hint={
-                checked ? (
-                  <Check className="h-3.5 w-3.5 text-white/70" strokeWidth={2} />
-                ) : null
-              }
-            >
-              <span className={cn("h-3 w-3 shrink-0 rounded", resolved.bg)} />
-              {resolved.name}
-            </GlassMenuItem>
-          );
-        })}
-        <GlassMenuSep />
-        <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-white/35">
-          Tags
-        </p>
-        {tags.map((tag) => {
-          const checked = selectedTags.includes(tag);
-          return (
-            <GlassMenuItem
-              key={tag}
-              onClick={() => toggleIn(tag, selectedTags, setSelectedTags)}
-              hint={
-                checked ? (
-                  <Check className="h-3.5 w-3.5 text-white/70" strokeWidth={2} />
-                ) : null
-              }
-            >
-              {tag}
-            </GlassMenuItem>
-          );
-        })}
-        <GlassMenuSep />
-        <p className="px-3 pb-1 pt-1 text-[11px] font-medium uppercase tracking-wide text-white/35">
-          Categorias
-        </p>
-        {categories.map((category) => {
-          const checked = selectedCategories.includes(category);
-          return (
-            <GlassMenuItem
-              key={category}
-              onClick={() =>
-                toggleIn(category, selectedCategories, setSelectedCategories)
-              }
-              hint={
-                checked ? (
-                  <Check className="h-3.5 w-3.5 text-white/70" strokeWidth={2} />
-                ) : null
-              }
-            >
-              {category}
-            </GlassMenuItem>
-          );
-        })}
-        {hasActiveFilters && (
+        <GooeyMenuLabel>Tipo</GooeyMenuLabel>
+        {categories.map((category) => (
+          <GooeyMenuItem
+            key={category}
+            role="menuitemcheckbox"
+            title={category}
+            checked={selectedCategories.includes(category)}
+            onClick={() => toggleIn(category, setSelectedCategories)}
+          />
+        ))}
+        <GooeyMenuSep />
+        <GooeyMenuLabel>Cor</GooeyMenuLabel>
+        {colors.map((color) => (
+          <GooeyMenuItem
+            key={color.value}
+            role="menuitemcheckbox"
+            icon={<span className={cn("block h-3 w-3 rounded-full", color.bg)} />}
+            title={color.name}
+            checked={selectedColors.includes(color.value)}
+            onClick={() => toggleIn(color.value, setSelectedColors)}
+          />
+        ))}
+        <GooeyMenuSep />
+        <GooeyMenuLabel>Tags</GooeyMenuLabel>
+        {tags.map((tag) => (
+          <GooeyMenuItem
+            key={tag}
+            role="menuitemcheckbox"
+            title={tag}
+            checked={selectedTags.includes(tag)}
+            onClick={() => toggleIn(tag, setSelectedTags)}
+          />
+        ))}
+        {hasActiveFilters ? (
           <>
-            <GlassMenuSep />
-            <GlassMenuItem
-              muted
+            <GooeyMenuSep />
+            <GooeyMenuItem
+              icon={<X strokeWidth={1.75} />}
+              title="Limpar filtros"
               onClick={() => {
                 clearFilters();
+                setOpen(false);
               }}
-            >
-              Limpar
-            </GlassMenuItem>
+            />
           </>
-        )}
-      </GlassMenu>
+        ) : null}
+      </GooeyPopover>
     </>
   );
+}
+
+/** Horas da grade: 7h–22h, esticando se algum evento sair disso. */
+function visibleHours(events: Event[]) {
+  let first = 7;
+  let last = 22;
+  for (const e of events) {
+    first = Math.min(first, e.startTime.getHours());
+    const endHour = e.endTime.getHours() + (e.endTime.getMinutes() > 0 ? 1 : 0);
+    last = Math.max(last, Math.min(endHour, 24) - 1);
+  }
+  return Array.from({ length: last - first + 1 }, (_, i) => first + i);
+}
+
+function formatClock(date: Date) {
+  return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
 function EventCard({
@@ -1104,6 +773,7 @@ function EventCard({
   onDragEnd,
   getColorClasses,
   variant = "default",
+  peekEventId,
 }: {
   event: Event;
   onEventClick: (event: Event) => void;
@@ -1111,198 +781,61 @@ function EventCard({
   onDragEnd: () => void;
   getColorClasses: (color: string) => { bg: string; text: string; name: string };
   variant?: "default" | "compact" | "detailed";
+  peekEventId?: string | null;
 }) {
-  const [isHovered, setIsHovered] = useState(false);
   const colorClasses = getColorClasses(event.color);
-
-  const formatTime = (date: Date) => {
-    return date.toLocaleTimeString("pt-BR", {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
-  };
-
-  const getDuration = () => {
-    const diff = event.endTime.getTime() - event.startTime.getTime();
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-    if (hours > 0) {
-      return `${hours}h ${minutes}min`;
-    }
-    return `${minutes}min`;
-  };
-
-  const popoverCard = (
-    <GlassCard className="gap-0 p-3 text-white shadow-lg shadow-black/20">
-      <div className="space-y-2">
-        <div className="flex items-start justify-between gap-2">
-          <h4 className="text-sm font-semibold leading-tight">{event.title}</h4>
-          <div
-            className={cn("h-3 w-3 flex-shrink-0 rounded-full", colorClasses.bg)}
-          />
-        </div>
-        {event.description && (
-          <p className="line-clamp-2 text-xs text-[var(--ff-muted)]">
-            {event.description}
-          </p>
-        )}
-        <div className="flex items-center gap-1 text-xs text-[var(--ff-muted)]">
-          <Clock className="h-3 w-3" />
-          <span>
-            {formatTime(event.startTime)} - {formatTime(event.endTime)}
-          </span>
-          <span className="text-[10px]">({getDuration()})</span>
-        </div>
-        <div className="flex flex-wrap gap-1">
-          {event.category && (
-            <Badge variant="secondary" className="h-5 text-[10px]">
-              {event.category}
-            </Badge>
-          )}
-          {event.tags?.map((tag) => (
-            <Badge key={tag} variant="outline" className="h-5 text-[10px]">
-              {tag}
-            </Badge>
-          ))}
-        </div>
-      </div>
-    </GlassCard>
-  );
-
-  if (variant === "compact") {
-    return (
-      <div
-        draggable
-        onDragStart={() => onDragStart(event)}
-        onDragEnd={onDragEnd}
-        onClick={() => onEventClick(event)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
-        className="relative cursor-pointer"
-      >
-        <div
-          className={cn(
-            "truncate rounded-[8px] px-1.5 py-0.5 text-xs font-medium text-white shadow-sm transition-all duration-300 animate-in fade-in slide-in-from-top-1",
-            colorClasses.bg,
-            isHovered && "z-10 scale-[1.02] shadow-md",
-          )}
-        >
-          {event.title}
-        </div>
-        {isHovered && (
-          <div className="absolute left-0 top-full z-50 mt-1 w-64 animate-in fade-in slide-in-from-top-2 duration-200">
-            {popoverCard}
-          </div>
-        )}
-      </div>
-    );
-  }
+  const open = peekEventId === event.id;
+  const common = {
+    "data-event-id": event.id,
+    role: "button",
+    tabIndex: 0,
+    "aria-label": `${event.title}, ${formatClock(event.startTime)}`,
+    "aria-expanded": open,
+    draggable: !event.locked,
+    onDragStart: () => onDragStart(event),
+    onDragEnd,
+    onClick: () => onEventClick(event),
+    onKeyDown: (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        onEventClick(event);
+      }
+    },
+  } as const;
 
   if (variant === "detailed") {
     return (
       <div
-        draggable
-        onDragStart={() => onDragStart(event)}
-        onDragEnd={onDragEnd}
-        onClick={() => onEventClick(event)}
-        onMouseEnter={() => setIsHovered(true)}
-        onMouseLeave={() => setIsHovered(false)}
+        {...common}
         className={cn(
-          "cursor-pointer rounded-lg p-3 text-white transition-all duration-300 animate-in fade-in slide-in-from-left-2",
+          "cursor-pointer rounded-[12px] p-3 text-white outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white/60",
           colorClasses.bg,
-          isHovered && "scale-[1.03] shadow-2xl ring-2 ring-white/50",
+          open && "ring-2 ring-white/70",
         )}
       >
         <div className="font-semibold">{event.title}</div>
-        {event.description && (
-          <div className="mt-1 line-clamp-2 text-sm opacity-90">
-            {event.description}
-          </div>
-        )}
+        {event.description ? (
+          <div className="mt-1 line-clamp-2 text-sm opacity-90">{event.description}</div>
+        ) : null}
         <div className="mt-2 flex items-center gap-2 text-xs opacity-80">
           <Clock className="h-3 w-3" />
-          {formatTime(event.startTime)} - {formatTime(event.endTime)}
+          {formatClock(event.startTime)} – {formatClock(event.endTime)}
         </div>
-        {isHovered && (
-          <div className="mt-2 flex animate-in fade-in slide-in-from-bottom-1 flex-wrap gap-1 duration-200">
-            {event.category && (
-              <Badge variant="secondary" className="text-xs">
-                {event.category}
-              </Badge>
-            )}
-            {event.tags?.map((tag) => (
-              <Badge key={tag} variant="outline" className="text-xs">
-                {tag}
-              </Badge>
-            ))}
-          </div>
-        )}
       </div>
     );
   }
 
   return (
     <div
-      draggable
-      onDragStart={() => onDragStart(event)}
-      onDragEnd={onDragEnd}
-      onClick={() => onEventClick(event)}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className="relative"
-    >
-      <div
-        className={cn(
-          "cursor-pointer rounded-[8px] px-2 py-1 text-xs font-medium text-white shadow-sm transition-all duration-300 animate-in fade-in slide-in-from-left-1",
-          colorClasses.bg,
-          isHovered && "z-10 scale-[1.02] shadow-md",
-        )}
-      >
-        <div className="truncate">{event.title}</div>
-      </div>
-      {isHovered && (
-        <div className="absolute left-0 top-full z-50 mt-1 w-72 animate-in fade-in slide-in-from-top-2 duration-200">
-          <GlassCard className="gap-0 p-4 text-white shadow-lg shadow-black/20">
-            <div className="space-y-3">
-              <div className="flex items-start justify-between gap-2">
-                <h4 className="font-semibold leading-tight">{event.title}</h4>
-                <div
-                  className={cn(
-                    "h-4 w-4 flex-shrink-0 rounded-full",
-                    colorClasses.bg,
-                  )}
-                />
-              </div>
-              {event.description && (
-                <p className="text-sm text-[var(--ff-muted)]">
-                  {event.description}
-                </p>
-              )}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-2 text-xs text-[var(--ff-muted)]">
-                  <Clock className="h-3.5 w-3.5" />
-                  <span>
-                    {formatTime(event.startTime)} - {formatTime(event.endTime)}
-                  </span>
-                  <span className="text-[10px]">({getDuration()})</span>
-                </div>
-                <div className="flex flex-wrap gap-1">
-                  {event.category && (
-                    <Badge variant="secondary" className="text-xs">
-                      {event.category}
-                    </Badge>
-                  )}
-                  {event.tags?.map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs">
-                      {tag}
-                    </Badge>
-                  ))}
-                </div>
-              </div>
-            </div>
-          </GlassCard>
-        </div>
+      {...common}
+      className={cn(
+        "cursor-pointer truncate rounded-[8px] font-medium text-white shadow-sm outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white/60",
+        variant === "compact" ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-xs",
+        colorClasses.bg,
+        open && "ring-2 ring-white/70",
       )}
+    >
+      {event.title}
     </div>
   );
 }
@@ -1315,6 +848,8 @@ function MonthView({
   onDragEnd,
   onDrop,
   getColorClasses,
+  peekEventId,
+  onDayOpen,
 }: {
   currentDate: Date;
   events: Event[];
@@ -1323,6 +858,9 @@ function MonthView({
   onDragEnd: () => void;
   onDrop: (date: Date) => void;
   getColorClasses: (color: string) => { bg: string; text: string; name: string };
+  peekEventId?: string | null;
+  /** Celular: tocar no dia abre a visão do dia. */
+  onDayOpen?: (date: Date) => void;
 }) {
   const firstDayOfMonth = new Date(
     currentDate.getFullYear(),
@@ -1384,6 +922,12 @@ function MonthView({
               )}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(day)}
+              onClick={(e) => {
+                // Só no celular, onde os cartões viram bolinhas.
+                if (window.matchMedia("(min-width: 640px)").matches) return;
+                if ((e.target as HTMLElement).closest("[data-event-id]")) return;
+                onDayOpen?.(day);
+              }}
             >
               <div
                 className={cn(
@@ -1395,7 +939,17 @@ function MonthView({
               >
                 {day.getDate()}
               </div>
-              <div className="space-y-1">
+              {dayEvents.length > 0 ? (
+                <div className="flex flex-wrap gap-0.5 px-0.5 sm:hidden" aria-hidden>
+                  {dayEvents.slice(0, 4).map((event) => (
+                    <span
+                      key={event.id}
+                      className={cn("h-1.5 w-1.5 rounded-full", getColorClasses(event.color).bg)}
+                    />
+                  ))}
+                </div>
+              ) : null}
+              <div className="hidden space-y-1 sm:block">
                 {dayEvents.slice(0, 3).map((event) => (
                   <EventCard
                     key={event.id}
@@ -1405,6 +959,7 @@ function MonthView({
                     onDragEnd={onDragEnd}
                     getColorClasses={getColorClasses}
                     variant="compact"
+                    peekEventId={peekEventId}
                   />
                 ))}
                 {dayEvents.length > 3 && (
@@ -1429,6 +984,7 @@ function WeekView({
   onDragEnd,
   onDrop,
   getColorClasses,
+  peekEventId,
 }: {
   currentDate: Date;
   events: Event[];
@@ -1437,6 +993,7 @@ function WeekView({
   onDragEnd: () => void;
   onDrop: (date: Date, hour: number) => void;
   getColorClasses: (color: string) => { bg: string; text: string; name: string };
+  peekEventId?: string | null;
 }) {
   const startOfWeek = new Date(currentDate);
   startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
@@ -1447,7 +1004,7 @@ function WeekView({
     return day;
   });
 
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = visibleHours(events);
 
   const getEventsForDayAndHour = (date: Date, hour: number) => {
     return events.filter((event) => {
@@ -1527,6 +1084,7 @@ function WeekView({
                         onDragEnd={onDragEnd}
                         getColorClasses={getColorClasses}
                         variant="default"
+                        peekEventId={peekEventId}
                       />
                     ))}
                   </div>
@@ -1548,6 +1106,7 @@ function DayView({
   onDragEnd,
   onDrop,
   getColorClasses,
+  peekEventId,
 }: {
   currentDate: Date;
   events: Event[];
@@ -1556,8 +1115,9 @@ function DayView({
   onDragEnd: () => void;
   onDrop: (date: Date, hour: number) => void;
   getColorClasses: (color: string) => { bg: string; text: string; name: string };
+  peekEventId?: string | null;
 }) {
-  const hours = Array.from({ length: 24 }, (_, i) => i);
+  const hours = visibleHours(events);
 
   const getEventsForHour = (hour: number) => {
     return events.filter((event) => {
@@ -1598,6 +1158,7 @@ function DayView({
                       onDragEnd={onDragEnd}
                       getColorClasses={getColorClasses}
                       variant="detailed"
+                      peekEventId={peekEventId}
                     />
                   ))}
                 </div>
@@ -1619,10 +1180,12 @@ function ListView({
   events,
   onEventClick,
   getColorClasses,
+  peekEventId,
 }: {
   events: Event[];
   onEventClick: (event: Event) => void;
   getColorClasses: (color: string) => { bg: string; text: string; name: string };
+  peekEventId?: string | null;
 }) {
   const sortedEvents = [...events].sort(
     (a, b) => a.startTime.getTime() - b.startTime.getTime(),
@@ -1658,8 +1221,21 @@ function ListView({
               return (
                 <div
                   key={event.id}
+                  data-event-id={event.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-expanded={peekEventId === event.id}
                   onClick={() => onEventClick(event)}
-                  className="group cursor-pointer rounded-2xl bg-white/[0.03] p-3 transition-colors duration-200 animate-in fade-in slide-in-from-bottom-2 hover:bg-white/[0.06] sm:p-4"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      onEventClick(event);
+                    }
+                  }}
+                  className={cn(
+                    "group cursor-pointer rounded-2xl bg-white/[0.03] p-3 outline-none transition-colors duration-200 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-white/40 sm:p-4",
+                    peekEventId === event.id && "bg-white/[0.07]",
+                  )}
                 >
                     <div className="flex items-start gap-2 sm:gap-3">
                       <div

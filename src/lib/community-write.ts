@@ -1,4 +1,5 @@
 import type { Community } from "@/types";
+import type { CoverMeta } from "@/lib/cover-meta";
 import {
   assertSettings,
   SettingsError,
@@ -19,6 +20,7 @@ export type CommunityInsert = {
   descricao?: string;
   tags?: string[];
   capaUrl?: string | null;
+  capaMeta?: CoverMeta | null;
   settings: CommunitySettings;
 };
 
@@ -27,6 +29,8 @@ export type CommunityPatch = {
   descricao?: string;
   tags?: string[];
   capaUrl?: string | null;
+  /** Sem valor e com capaUrl mudando: o crédito antigo é limpo. */
+  capaMeta?: CoverMeta | null;
   settings?: CommunitySettings;
   institutionId?: string | null;
 };
@@ -39,6 +43,7 @@ export type CommunityWritePort = {
     descricao: string;
     tags: string[];
     capaUrl: string | null;
+    capaMeta: CoverMeta | null;
     settings: CommunitySettings;
   }): Community | Promise<Community>;
   update(id: string, patch: CommunityPatch): Community | Promise<Community>;
@@ -65,6 +70,7 @@ export function createCommunityWrite(port: CommunityWritePort) {
         descricao: (draft.descricao || "").trim(),
         tags: draft.tags || [],
         capaUrl: draft.capaUrl ?? null,
+        capaMeta: draft.capaMeta ?? null,
         settings: draft.settings,
       });
     },

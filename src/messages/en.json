@@ -108,7 +108,7 @@
     "emptyAdmin": "Add the first class of the week.",
     "emptyMember": "When the class rep builds the week, it shows up here.",
     "saveError": "Could not save the class",
-    "saveErrorHint": "Confirm you are an admin of this class and that migrations 005 and 006 ran.",
+    "saveErrorHint": "Only class admins can change the schedule. Try again.",
     "invalid": "Fill in course, teacher, day, times and room.",
     "from": "from",
     "to": "to",

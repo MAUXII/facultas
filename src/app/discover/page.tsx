@@ -4,7 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { useAuth } from "@/hooks/useAuth";
 import { listarComunidadesPublicas } from "@/lib/comunidade-service";
-import { COMMUNITY_KINDS, type CommunityKind } from "@/lib/community";
+import {
+  CREATABLE_COMMUNITY_KINDS,
+  type CommunityKind,
+} from "@/lib/community";
 import type { Community } from "@/types";
 import { DiscoverCard } from "@/components/discover-card/discover-card";
 import { CommunityPreviewDrawer } from "@/components/community-preview-drawer/community-preview-drawer";
@@ -61,7 +64,7 @@ export default function DiscoverPage() {
             defaultValue={filter}
             items={[
               { value: "all", label: "Tudo" },
-              ...COMMUNITY_KINDS.map((kind) => ({
+              ...CREATABLE_COMMUNITY_KINDS.map((kind) => ({
                 value: kind.id,
                 label: kind.label,
               })),
@@ -71,7 +74,9 @@ export default function DiscoverPage() {
                 setFilter("all");
                 return;
               }
-              const kind = COMMUNITY_KINDS.find((item) => item.id === value);
+              const kind = CREATABLE_COMMUNITY_KINDS.find(
+                (item) => item.id === value,
+              );
               if (kind) setFilter(kind.id);
             }}
             className="w-fit"

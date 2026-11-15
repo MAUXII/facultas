@@ -13,8 +13,9 @@ type GlassCardProps = ComponentProps<typeof Card> &
 
 type GlassCardFooterProps = ComponentProps<typeof CardFooter> & FrostGlassVariantProp;
 
+/* Frost Luma: branco baixo + blur — a atmosfera da capa colore o card. */
 const FLAT_CARD =
-  "border border-white/10 bg-[var(--ff-surface)] shadow-none ring-0";
+  "rounded-[10px] border-0 bg-white/[0.08] shadow-none ring-0 backdrop-blur-xl backdrop-saturate-150";
 
 function GlassCard({
   className,
@@ -31,7 +32,7 @@ function GlassCard({
         data-slot="glass-card"
         data-glass-variant={glassVariant}
         data-ff-surface-skin="flat"
-        className={cn(FLAT_CARD, "rounded-2xl", surfaceClassName, className)}
+        className={cn(FLAT_CARD, surfaceClassName, className)}
         {...props}
       />
     );

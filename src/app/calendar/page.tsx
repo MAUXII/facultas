@@ -16,6 +16,7 @@ import {
   updateCalendarEvent,
 } from "@/lib/calendar-events";
 import { playSnd } from "@/lib/snd";
+import { FEATURES } from "@/lib/features";
 
 export default function CalendarioPage() {
   const { user, loading } = useRequireAuth();
@@ -126,7 +127,15 @@ export default function CalendarioPage() {
           key={managerKey}
           events={events}
           defaultView="month"
-          categories={["Aula", "Prova", "Reunião", "Pessoal", "Entrega", "Aviso", "Sessão"]}
+          categories={[
+            "Aula",
+            "Prova",
+            "Reunião",
+            "Pessoal",
+            "Entrega",
+            "Aviso",
+            ...(FEATURES.sessions ? ["Sessão"] : []),
+          ]}
           availableTags={[
             "Importante",
             "Urgente",

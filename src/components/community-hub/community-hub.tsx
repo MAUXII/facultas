@@ -1,45 +1,49 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { format } from "date-fns";
 import { ptBR } from "date-fns/locale";
 import {
   AlignLeft,
   BookOpen,
+  Check,
   Link2,
   Megaphone,
+  MoreHorizontal,
+  UserMinus,
   Users,
+  X,
   type LucideIcon,
 } from "lucide-react";
+import { toast } from "@/components/ui/use-toast";
+import { GooeyMenuItem, GooeyPopover } from "@/components/ui/gooey-popover";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import {
+  aprovarMembro,
   listarMateriais,
   listarMembros,
   listarPosts,
   listarSessoesDaComunidade,
+  recusarMembro,
+  removerMembro,
   type MemberRow,
   type PostRow,
   type ResourceRow,
   type SessionRow,
 } from "@/lib/community-hub";
-import {
-  createHub,
-  HubError,
-} from "@/lib/hub";
-import { supabaseHubPort } from "@/lib/hub-supabase";
 import type { Access } from "@/lib/access";
-import { toast } from "@/components/ui/use-toast";
 import { RichDescriptionView } from "@/components/rich-description/rich-description";
 import { isEmptyRichText } from "@/lib/sanitize-html";
 import { LiveMedia } from "@/components/live-media/live-media";
 import { GradePanel } from "@/components/community-hub/grade-panel";
 import { SessionPanel } from "@/components/community-hub/session-panel";
+import { AvisoDialog } from "@/components/community-hub/aviso-dialog";
+import { MaterialDialog } from "@/components/community-hub/material-dialog";
 import { GlassCard } from "@/components/ui/glasscn/glass-card";
-import {
-  lerSalaPeloLink,
-  LinkAccessError,
-} from "@/lib/link-access-supabase";
+import { lerSalaPeloLink, LinkAccessError } from "@/lib/link-access-supabase";
 import type { Aula } from "@/lib/grade";
+import { leaderLabel } from "@/lib/community";
+import { FEATURES } from "@/lib/features";
 
 type TabId = "inicio" | "grade" | "materiais" | "membros" | "sessoes" | "sobre";
 
@@ -53,9 +57,9 @@ function tabsFor(kind?: string): { value: TabId; label: string }[] {
   tabs.push(
     { value: "materiais", label: "Materiais" },
     { value: "membros", label: "Membros" },
-    { value: "sessoes", label: "Sessões" },
-    { value: "sobre", label: "Sobre" },
   );
+  if (FEATURES.sessions) tabs.push({ value: "sessoes", label: "Sessões" });
+  tabs.push({ value: "sobre", label: "Sobre" });
   return tabs;
 }
 
@@ -89,13 +93,65 @@ export function CommunityHub({
   const [linkAulas, setLinkAulas] = useState<Aula[]>([]);
   const [linkError, setLinkError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [draft, setDraft] = useState("");
-  const [agendaLocal, setAgendaLocal] = useState("");
-  const [pushCalendar, setPushCalendar] = useState(false);
-  const [publishError, setPublishError] = useState("");
-  const [linkTitle, setLinkTitle] = useState("");
-  const [linkUrl, setLinkUrl] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [avisoOpen, setAvisoOpen] = useState(false);
+  const [materialOpen, setMaterialOpen] = useState(false);
+  const avisoTriggerRef = useRef<HTMLButtonElement>(null);
+  const materialTriggerRef = useRef<HTMLButtonElement>(null);
+  const [reviewing, setReviewing] = useState<string | null>(null);
+  const [memberMenu, setMemberMenu] = useState<MemberRow | null>(null);
+  const memberMenuRef = useRef<HTMLButtonElement | null>(null);
+
+  const removeMember = async (member: MemberRow) => {
+    setReviewing(member.user_id);
+    try {
+      await removerMembro(communityId, member.user_id);
+      setMembers((list) => list.filter((m) => m.user_id !== member.user_id));
+      toast({
+        title: "Membro removido",
+        description: `${member.name} não faz mais parte da sala.`,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Não deu para remover",
+        description: "Só quem criou a sala pode remover membros.",
+        variant: "destructive",
+      });
+    } finally {
+      setReviewing(null);
+    }
+  };
+
+  const review = async (member: MemberRow, accept: boolean) => {
+    setReviewing(member.user_id);
+    playRuixenClick(accept ? "action" : "soft");
+    try {
+      if (accept) await aprovarMembro(communityId, member.user_id);
+      else await recusarMembro(communityId, member.user_id);
+      setMembers((list) =>
+        accept
+          ? list.map((m) =>
+              m.user_id === member.user_id ? { ...m, status: "active" } : m,
+            )
+          : list.filter((m) => m.user_id !== member.user_id),
+      );
+      toast({
+        title: accept ? "Entrada aprovada" : "Pedido recusado",
+        description: accept
+          ? `${member.name} agora faz parte da sala.`
+          : `${member.name} não entrou.`,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Não deu para concluir",
+        description: "Só quem criou a sala pode aprovar pedidos.",
+        variant: "destructive",
+      });
+    } finally {
+      setReviewing(null);
+    }
+  };
 
   const load = async () => {
     setLinkError("");
@@ -123,7 +179,7 @@ export function CommunityHub({
     } catch (err) {
       console.error(err);
       if (err instanceof LinkAccessError) {
-        setLinkError("Rode a migration 015 no Supabase para abrir a sala pelo link.");
+        setLinkError("Essa sala ainda não abre pelo link. Peça para entrar.");
       }
     } finally {
       setLoading(false);
@@ -134,74 +190,6 @@ export function CommunityHub({
     void load();
   }, [communityId, viaLink, publicId]);
 
-  const publishPost = async () => {
-    if (!userId || !draft.trim()) return;
-    if (pushCalendar && !agendaLocal) return;
-    const agendaDate = agendaLocal ? new Date(agendaLocal) : null;
-    if (agendaDate && Number.isNaN(agendaDate.getTime())) return;
-    setSaving(true);
-    setPublishError("");
-    playRuixenClick("action");
-    try {
-      await createHub(supabaseHubPort()).addAviso(
-        communityId,
-        userId,
-        draft,
-        {
-          at: agendaDate ? agendaDate.toISOString() : null,
-          pushToCalendar: pushCalendar,
-        },
-      );
-      setDraft("");
-      setAgendaLocal("");
-      setPushCalendar(false);
-      await load();
-    } catch (err) {
-      console.error(err);
-      const description = hubWriteHint(
-        err,
-        agendaColumnMissing(err)
-          ? "Rode a migration 014 no Supabase para aviso com data."
-          : "Rode a migration 007 se ainda não rodou.",
-      );
-      setPublishError(description);
-      toast({
-        title: "Não deu para publicar",
-        description,
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const addLink = async () => {
-    if (!userId || !linkTitle.trim() || !linkUrl.trim()) return;
-    setSaving(true);
-    playRuixenClick("action");
-    try {
-      const url = linkUrl.startsWith("http") ? linkUrl : `https://${linkUrl}`;
-      await createHub(supabaseHubPort()).addMaterial(
-        communityId,
-        userId,
-        linkTitle,
-        url,
-      );
-      setLinkTitle("");
-      setLinkUrl("");
-      await load();
-    } catch (err) {
-      console.error(err);
-      toast({
-        title: "Não deu para salvar o material",
-        description: hubWriteHint(err, "Rode a migration 007 se ainda não rodou."),
-        variant: "destructive",
-      });
-    } finally {
-      setSaving(false);
-    }
-  };
-
   return (
     <div className="flex flex-col gap-6">
       {viaLink ? (
@@ -210,9 +198,7 @@ export function CommunityHub({
           publicar, entre com uma conta.
         </p>
       ) : null}
-      {linkError ? (
-        <p className="text-sm text-white/70">{linkError}</p>
-      ) : null}
+      {linkError ? <p className="text-sm text-white/70">{linkError}</p> : null}
       <div className="flex flex-wrap gap-x-6 gap-y-1 border-b border-white/[0.06]">
         {tabs.map((item) => (
           <button
@@ -233,65 +219,25 @@ export function CommunityHub({
         ))}
       </div>
 
-      {loading ? (
-        <GlassCard className="h-24 gap-0 animate-pulse p-0" />
-      ) : null}
+      {loading ? <GlassCard className="h-24 gap-0 animate-pulse p-0" /> : null}
 
       {!loading && tab === "inicio" && (
         <div className="flex flex-col gap-4">
-          {canPost ? (
-            <GlassCard className="gap-0 p-4 text-white">
-              <textarea
-                value={draft}
-                onChange={(e) => setDraft(e.target.value)}
-                rows={3}
-                placeholder={
-                  kind === "turma"
-                    ? "Escrever um aviso para a turma…"
-                    : "Escrever um aviso…"
-                }
-                className="w-full resize-none bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-              />
-              <div className="mt-3 flex flex-col gap-3">
-                <input
-                  type="datetime-local"
-                  value={agendaLocal}
-                  onChange={(e) => setAgendaLocal(e.target.value)}
-                  aria-label="Data do aviso"
-                  style={{ colorScheme: "dark" }}
-                  className="w-full rounded-xl bg-white/[0.06] px-3 py-2 text-sm text-white outline-none sm:w-fit"
-                />
-                <div className="flex items-center justify-between gap-3">
-                  <label className="flex items-center gap-2 text-sm text-white/55">
-                    <input
-                      type="checkbox"
-                      checked={pushCalendar}
-                      onChange={(e) => setPushCalendar(e.target.checked)}
-                      className="size-4 accent-white"
-                    />
-                    Mandar para o calendário
-                  </label>
-                  <button
-                    type="button"
-                    disabled={
-                      saving || !draft.trim() || (pushCalendar && !agendaLocal)
-                    }
-                    onClick={() => void publishPost()}
-                    className="shrink-0 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
-                  >
-                    Publicar
-                  </button>
-                </div>
-              </div>
-              {pushCalendar && !agendaLocal ? (
-                <p className="mt-2 text-xs text-white/45">
-                  Para mandar para o calendário, escolhe a data.
-                </p>
-              ) : null}
-              {publishError ? (
-                <p className="mt-2 text-xs text-white/70">{publishError}</p>
-              ) : null}
-            </GlassCard>
+          {canPost && userId ? (
+            <div className="flex justify-end">
+              <button
+                ref={avisoTriggerRef}
+                type="button"
+                data-snd="select"
+                onClick={() => {
+                  playRuixenClick("soft");
+                  setAvisoOpen(true);
+                }}
+                className="text-sm text-white/40 transition hover:text-white"
+              >
+                Novo aviso
+              </button>
+            </div>
           ) : null}
 
           {posts.length === 0 ? (
@@ -303,15 +249,12 @@ export function CommunityHub({
                   ? kind === "turma"
                     ? "Avisos, combinados e recados da turma ficam aqui."
                     : "Avisos e recados ficam aqui."
-                  : "Só o representante publica avisos nesta comunidade."
+                  : `Só ${leaderLabel(kind)} publica avisos aqui.`
               }
             />
           ) : (
             posts.map((post) => (
-              <GlassCard
-                key={post.id}
-                className="gap-0 px-4 py-4 text-white"
-              >
+              <GlassCard key={post.id} className="gap-0 px-4 py-4 text-white">
                 <div className="flex items-center gap-2 text-sm text-white/55">
                   <Avatar name={post.author_name} src={post.author_avatar} />
                   <span>{post.author_name}</span>
@@ -349,29 +292,21 @@ export function CommunityHub({
 
       {!loading && tab === "materiais" && (
         <div className="flex flex-col gap-4">
-          {canAddMaterial ? (
-            <GlassCard className="gap-2 p-4 text-white sm:flex-row sm:items-center">
-              <input
-                value={linkTitle}
-                onChange={(e) => setLinkTitle(e.target.value)}
-                placeholder="Nome do material"
-                className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-              />
-              <input
-                value={linkUrl}
-                onChange={(e) => setLinkUrl(e.target.value)}
-                placeholder="https://…"
-                className="flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-              />
+          {canAddMaterial && userId ? (
+            <div className="flex justify-end">
               <button
+                ref={materialTriggerRef}
                 type="button"
-                disabled={saving || !linkTitle.trim() || !linkUrl.trim()}
-                onClick={() => void addLink()}
-                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black disabled:opacity-40"
+                data-snd="select"
+                onClick={() => {
+                  playRuixenClick("soft");
+                  setMaterialOpen(true);
+                }}
+                className="text-sm text-white/40 transition hover:text-white"
               >
-                Adicionar
+                Novo material
               </button>
-            </GlassCard>
+            </div>
           ) : null}
 
           {resources.length === 0 ? (
@@ -381,7 +316,7 @@ export function CommunityHub({
               text={
                 canAddMaterial
                   ? "PDFs, Drive e links da disciplina."
-                  : "Só o representante adiciona materiais nesta comunidade."
+                  : `Só ${leaderLabel(kind)} adiciona materiais aqui.`
               }
             />
           ) : (
@@ -416,25 +351,121 @@ export function CommunityHub({
               text="Convide pelo Descobrir ou pelo código de acesso."
             />
           ) : (
-            members.map((member) => (
-              <GlassCard
-                key={member.user_id}
-                className="flex-row items-center gap-3 px-4 py-3 text-white"
-              >
-                <Avatar name={member.name} src={member.avatar_url} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm text-white">{member.name}</p>
-                  {member.username ? (
-                    <p className="text-xs text-white/35">@{member.username}</p>
-                  ) : null}
-                </div>
-                <span className="text-xs text-white/35">
-                  {member.role === "admin" ? "Admin" : "Membro"}
-                  {member.status === "pending" ? " · pendente" : ""}
-                </span>
-              </GlassCard>
-            ))
+            // Pedidos pendentes primeiro, para o admin ver logo o que precisa decidir.
+            [...members]
+              .sort(
+                (a, b) =>
+                  Number(b.status === "pending") -
+                  Number(a.status === "pending"),
+              )
+              .map((member) => {
+                const pending = member.status === "pending";
+                const canReview =
+                  pending && access.canEditCommunity && !viaLink;
+                return (
+                  <GlassCard
+                    key={member.user_id}
+                    className="flex-row items-center gap-3 px-4 py-3 text-white"
+                  >
+                    <Avatar name={member.name} src={member.avatar_url} />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm text-white">
+                        {member.name}
+                      </p>
+                      {member.username ? (
+                        <p className="text-xs text-white/35">
+                          @{member.username}
+                        </p>
+                      ) : member.is_guest ? (
+                        <p className="text-xs text-white/35">Visitante</p>
+                      ) : null}
+                    </div>
+                    {canReview ? (
+                      <div className="flex shrink-0 items-center gap-1.5">
+                        <span className="mr-1 hidden text-xs text-white/40 sm:inline">
+                          Pediu para entrar
+                        </span>
+                        <button
+                          type="button"
+                          disabled={reviewing === member.user_id}
+                          onClick={() => void review(member, false)}
+                          aria-label={`Recusar ${member.name}`}
+                          title="Recusar"
+                          className="flex h-8 w-8 items-center justify-center rounded-[6px] text-white/55 transition hover:bg-[#95959522] hover:text-white disabled:opacity-50"
+                        >
+                          <X className="h-4 w-4" strokeWidth={1.75} />
+                        </button>
+                        <button
+                          type="button"
+                          disabled={reviewing === member.user_id}
+                          onClick={() => void review(member, true)}
+                          className="inline-flex h-8 items-center gap-1.5 rounded-[6px] bg-white px-3 text-xs font-semibold text-black transition hover:bg-white/90 disabled:opacity-50"
+                        >
+                          <Check className="h-3.5 w-3.5" strokeWidth={2} />
+                          Aprovar
+                        </button>
+                      </div>
+                    ) : (
+                      <div className="flex shrink-0 items-center gap-1">
+                        <span className="text-xs text-white/35">
+                          {member.role === "admin" ? "Admin" : "Membro"}
+                          {pending ? " · pendente" : ""}
+                        </span>
+                        {access.canEditCommunity &&
+                        !viaLink &&
+                        !pending &&
+                        member.role !== "admin" &&
+                        member.user_id !== userId ? (
+                          <button
+                            type="button"
+                            disabled={reviewing === member.user_id}
+                            onClick={(e) => {
+                              playRuixenClick("soft");
+                              memberMenuRef.current = e.currentTarget;
+                              setMemberMenu(member);
+                            }}
+                            aria-haspopup="menu"
+                            aria-expanded={
+                              memberMenu?.user_id === member.user_id
+                            }
+                            aria-label={`Opções de ${member.name}`}
+                            className="ml-1 flex h-7 w-7 items-center justify-center rounded-[6px] text-white/45 transition hover:bg-[#95959522] hover:text-white disabled:opacity-50"
+                          >
+                            <MoreHorizontal
+                              className="h-4 w-4"
+                              strokeWidth={1.75}
+                            />
+                          </button>
+                        ) : null}
+                      </div>
+                    )}
+                  </GlassCard>
+                );
+              })
           )}
+          <GooeyPopover
+            open={memberMenu !== null}
+            onClose={() => setMemberMenu(null)}
+            anchorRef={memberMenuRef}
+            width={280}
+            ariaLabel="Opções do membro"
+            triggerContent={
+              <MoreHorizontal className="h-4 w-4" strokeWidth={1.75} />
+            }
+          >
+            {memberMenu ? (
+              <GooeyMenuItem
+                icon={<UserMinus strokeWidth={1.5} />}
+                title={`Remover ${memberMenu.name}`}
+                description="Perde o acesso à sala. Pode pedir para entrar de novo."
+                onClick={() => {
+                  const target = memberMenu;
+                  setMemberMenu(null);
+                  void removeMember(target);
+                }}
+              />
+            ) : null}
+          </GooeyPopover>
         </div>
       )}
 
@@ -463,6 +494,29 @@ export function CommunityHub({
           )}
         </div>
       )}
+
+      {canPost && userId ? (
+        <AvisoDialog
+          open={avisoOpen}
+          onOpenChange={setAvisoOpen}
+          communityId={communityId}
+          userId={userId}
+          kind={kind}
+          onSaved={load}
+          anchorRef={avisoTriggerRef}
+        />
+      ) : null}
+
+      {canAddMaterial && userId ? (
+        <MaterialDialog
+          open={materialOpen}
+          onOpenChange={setMaterialOpen}
+          communityId={communityId}
+          userId={userId}
+          onSaved={load}
+          anchorRef={materialTriggerRef}
+        />
+      ) : null}
     </div>
   );
 }
@@ -477,24 +531,6 @@ function Avatar({ name, src }: { name: string; src: string | null }) {
       )}
     </span>
   );
-}
-
-function agendaColumnMissing(err: unknown) {
-  const message =
-    err instanceof Error
-      ? err.message
-      : typeof err === "object" && err && "message" in err
-        ? String((err as { message?: unknown }).message ?? "")
-        : "";
-  return message.includes("agenda_at") || message.includes("push_to_calendar");
-}
-
-function hubWriteHint(err: unknown, fallback: string) {
-  if (err instanceof HubError) {
-    if (err.code === "forbidden") return "Você não pode publicar aqui.";
-    if (err.code === "invalid") return "Preencha o campo antes de enviar.";
-  }
-  return fallback;
 }
 
 function Empty({

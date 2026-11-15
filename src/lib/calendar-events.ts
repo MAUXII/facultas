@@ -6,6 +6,8 @@ import {
 } from "@/lib/aviso-agenda";
 import { mentionsMissingAttendance, sessionSpan, sessionTitle } from "@/lib/sessao";
 import type { Event } from "@/components/ui/event-manager";
+import { WEEKDAYS, type Weekday } from "@/lib/grade";
+import { expandAulas, gradeWindow, type AgendaAula } from "@/lib/grade-agenda";
 
 type CalendarEventRow = {
   id: string;
@@ -145,14 +147,84 @@ export async function listSessaoAgendaEvents(): Promise<Event[]> {
   });
 }
 
+type CommunityEmbed = { name: string | null; archived_at?: string | null };
+
+type AulaAgendaRow = {
+  id: string;
+  community_id: string;
+  subject: string;
+  teacher: string;
+  weekday: string;
+  starts_at: string;
+  ends_at: string;
+  room: string;
+};
+
+/** Aulas da grade de todas as turmas em que a pessoa está, como ocorrências semanais. */
+export async function listGradeAgendaEvents(): Promise<Event[]> {
+  const supabase = createClient();
+  const { data: auth } = await supabase.auth.getUser();
+  const userId = auth.user?.id;
+  if (!userId) return [];
+
+  const { data: memberships, error: memberError } = await supabase
+    .from("community_members")
+    .select("community_id, communities(*)")
+    .eq("user_id", userId)
+    .eq("status", "active");
+  if (memberError) throw memberError;
+
+  const names = new Map<string, string>();
+  for (const row of (memberships || []) as {
+    community_id: string;
+    communities: CommunityEmbed | CommunityEmbed[] | null;
+  }[]) {
+    const c = Array.isArray(row.communities) ? row.communities[0] : row.communities;
+    // Sala arquivada (fim de semestre) não enche a agenda.
+    if (c?.archived_at) continue;
+    names.set(row.community_id, c?.name ?? "");
+  }
+  if (names.size === 0) return [];
+
+  const { data, error } = await supabase
+    .from("aulas")
+    .select("id, community_id, subject, teacher, weekday, starts_at, ends_at, room")
+    .in("community_id", [...names.keys()]);
+  if (error) throw error;
+
+  const aulas: AgendaAula[] = ((data || []) as AulaAgendaRow[]).flatMap((row) =>
+    (WEEKDAYS as readonly string[]).includes(row.weekday)
+      ? [
+          {
+            id: row.id,
+            communityId: row.community_id,
+            disciplina: row.subject,
+            professor: row.teacher,
+            dia: row.weekday as Weekday,
+            comeca: row.starts_at.slice(0, 5),
+            termina: row.ends_at.slice(0, 5),
+            salaFisica: row.room,
+            roomName: names.get(row.community_id) || undefined,
+          },
+        ]
+      : [],
+  );
+  const { from, to } = gradeWindow();
+  return expandAulas(aulas, from, to);
+}
+
 export async function listCalendarView(): Promise<Event[]> {
-  const [personal, agenda, sessoes] = await Promise.all([
+  const [personal, agenda, sessoes, aulas] = await Promise.all([
     listCalendarEvents(),
     listAvisoAgendaEvents(),
     listSessaoAgendaEvents(),
+    listGradeAgendaEvents().catch((err) => {
+      console.error(err);
+      return [] as Event[];
+    }),
   ]);
   const seen = new Set(personal.map((event) => event.id));
-  const rest = [...agenda, ...sessoes].filter((event) => !seen.has(event.id));
+  const rest = [...agenda, ...sessoes, ...aulas].filter((event) => !seen.has(event.id));
   return [...personal, ...rest].sort(
     (a, b) => a.startTime.getTime() - b.startTime.getTime(),
   );

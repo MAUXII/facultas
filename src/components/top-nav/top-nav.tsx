@@ -7,12 +7,9 @@ import {
   Compass,
   CalendarDays,
   User,
-  Bell,
   Menu,
   X,
   Plus,
-  KeyRound,
-  Settings,
   QrCode,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
@@ -28,54 +25,125 @@ import { useAuth } from "@/hooks/useAuth";
 import { createClient } from "@/lib/supabase/client";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import { useTranslations } from "next-intl";
-import { GlassMenu, GlassMenuItem } from "@/components/ui/glass-menu";
+import { GooeyPopover } from "@/components/ui/gooey-popover";
 import { LiveMedia } from "@/components/live-media/live-media";
+import { NotificationsBell } from "@/components/notifications-bell/notifications-bell";
 import { useCommunities } from "@/app/communities-context";
+import { useUsuario } from "@/hooks/useUsuario";
 import { cn } from "@/lib/utils";
+import { FEATURES } from "@/lib/features";
 
 const ICON_STROKE = 1.5;
-const ACCOUNT_MENU_WIDTH = 220;
+const ACCOUNT_MENU_WIDTH = 260;
 
-function AccountMenu({
-  onJoin,
-  onSettings,
-  onProfile,
-  onQr,
-  joinLabel,
-  settingsLabel,
-  profileLabel,
-  qrLabel,
-}: {
+type AccountMenuProps = {
   onJoin: () => void;
   onSettings: () => void;
   onProfile: () => void;
   onQr: () => void;
+  onLogout: () => void;
   joinLabel: string;
   settingsLabel: string;
   profileLabel: string;
   qrLabel: string;
-}) {
-  const iconClass = "size-4 shrink-0 opacity-70";
+  logoutLabel: string;
+  name: string;
+  email: string;
+  avatarUrl: string | null;
+};
 
+const LUMA_ROW =
+  "flex w-full items-center rounded-[4px] px-3 py-1.5 text-left text-sm leading-[21px] text-white/[0.79] transition-colors duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[#95959522] focus-visible:bg-[#95959522] focus-visible:outline-none";
+
+/**
+ * Menu da conta (desktop e mobile) no padrão Luma via GooeyPopover.
+ */
+function AccountMenuPanel({
+  onJoin,
+  onSettings,
+  onProfile,
+  onQr,
+  onLogout,
+  joinLabel,
+  settingsLabel,
+  profileLabel,
+  qrLabel,
+  logoutLabel,
+  name,
+  email,
+  avatarUrl,
+}: AccountMenuProps) {
+  const headerHover =
+    "transition-colors duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] hover:bg-[#95959522] focus-visible:bg-[#95959522] focus-visible:outline-none";
+  const row = (label: string, onClick: () => void) => (
+    <button
+      type="button"
+      role="menuitem"
+      className={LUMA_ROW}
+      onClick={onClick}
+    >
+      <span className="min-w-0 flex-1 truncate">{label}</span>
+    </button>
+  );
   return (
-    <>
-      <GlassMenuItem onClick={onProfile}>
-        <User className={iconClass} strokeWidth={1.5} aria-hidden />
-        {profileLabel}
-      </GlassMenuItem>
-      <GlassMenuItem onClick={onQr}>
-        <QrCode className={iconClass} strokeWidth={1.5} aria-hidden />
-        {qrLabel}
-      </GlassMenuItem>
-      <GlassMenuItem onClick={onJoin}>
-        <KeyRound className={iconClass} strokeWidth={1.5} aria-hidden />
-        {joinLabel}
-      </GlassMenuItem>
-      <GlassMenuItem onClick={onSettings}>
-        <Settings className={iconClass} strokeWidth={1.5} aria-hidden />
-        {settingsLabel}
-      </GlassMenuItem>
-    </>
+    <div className="flex flex-col">
+      <div className="flex items-stretch gap-1">
+        <button
+          type="button"
+          role="menuitem"
+          onClick={onProfile}
+          aria-label={`${profileLabel}: ${name}`}
+          title={profileLabel}
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-3 rounded-[4px] px-3 py-1 text-left",
+            headerHover,
+          )}
+        >
+          {avatarUrl ? (
+            <LiveMedia
+              src={avatarUrl}
+              className="h-8 w-8 shrink-0 rounded-full object-cover shadow-[inset_0_0_0_0.5px_rgba(255,255,255,0.08)]"
+            />
+          ) : (
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-white/[0.08]">
+              <User
+                className="h-4 w-4 text-white/70"
+                strokeWidth={ICON_STROKE}
+              />
+            </span>
+          )}
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="truncate text-base font-medium leading-6 text-white">
+              {name}
+            </span>
+            {email ? (
+              <span className="truncate text-[13px] leading-[19.5px] text-white/50">
+                {email}
+              </span>
+            ) : null}
+          </span>
+        </button>
+        {FEATURES.qr ? (
+          <button
+            type="button"
+            role="menuitem"
+            onClick={onQr}
+            aria-label={qrLabel}
+            title={qrLabel}
+            className={cn(
+              "flex w-9 shrink-0 items-center justify-center rounded-[4px] text-white/50 hover:text-white",
+              headerHover,
+            )}
+          >
+            <QrCode className="h-4 w-4" strokeWidth={ICON_STROKE} />
+          </button>
+        ) : null}
+      </div>
+      <div className="-mx-1 mt-1 border-t border-white/[0.08] pt-1" />
+      {row(settingsLabel, onSettings)}
+      {row(joinLabel, onJoin)}
+      {row(logoutLabel, onLogout)}
+    </div>
   );
 }
 
@@ -93,6 +161,7 @@ export function TopNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { user, loading } = useAuth();
+  const { usuario } = useUsuario();
   const t = useTranslations("nav");
   const tp = useTranslations("profile");
   const { fetchCommunities } = useCommunities();
@@ -101,7 +170,6 @@ export function TopNav() {
   const [qrOpen, setQrOpen] = useState(false);
   const [joinOpen, setJoinOpen] = useState(false);
   const [accountOpen, setAccountOpen] = useState(false);
-  const [accountPos, setAccountPos] = useState({ x: 0, y: 0 });
   const [timeLabel, setTimeLabel] = useState("");
   const [scrolled, setScrolled] = useState(false);
   const accountTriggerRef = useRef<HTMLButtonElement>(null);
@@ -116,6 +184,7 @@ export function TopNav() {
     pathname === routes.login ||
     pathname === routes.signup ||
     pathname?.startsWith("/auth/") ||
+    pathname?.startsWith("/i/") ||
     pathname === routes.onboarding;
 
   useEffect(() => {
@@ -207,16 +276,20 @@ export function TopNav() {
 
   const iconClass = "h-4 w-4";
   const avatar =
-    user?.user_metadata?.avatar_url || user?.user_metadata?.picture || null;
+    user?.user_metadata?.avatar_url ||
+    user?.user_metadata?.picture ||
+    usuario?.avatar_url ||
+    null;
+  const accountName =
+    usuario?.name ||
+    user?.user_metadata?.full_name ||
+    user?.user_metadata?.name ||
+    "Você";
+  const accountEmail = usuario?.email || user?.email || "";
 
   const openAccountMenu = () => {
     playRuixenClick("soft");
-    const r = accountTriggerRef.current?.getBoundingClientRect();
-    if (!r) return;
-    setAccountPos({
-      x: Math.max(8, r.right - ACCOUNT_MENU_WIDTH),
-      y: r.bottom + 8,
-    });
+    setMobileOpen(false);
     setAccountOpen(true);
   };
 
@@ -256,13 +329,29 @@ export function TopNav() {
     setQrOpen(true);
   };
 
+  const accountMenuProps = {
+    onJoin: openJoin,
+    onSettings: openSettings,
+    onProfile: openProfile,
+    onQr: openQr,
+    onLogout: () => void handleLogout(),
+    joinLabel: t("joinCode"),
+    settingsLabel: t("settings"),
+    profileLabel: t("viewProfile"),
+    qrLabel: t("myQr"),
+    logoutLabel: tp("logout"),
+    name: accountName,
+    email: accountEmail,
+    avatarUrl: avatar,
+  };
+
   return (
     <>
       <header
         className={cn(
           "fixed inset-x-0 top-0 z-50 border-b transition-[border-color,background-color,backdrop-filter] duration-200",
           scrolled
-            ? "border-white/10 bg-[var(--ff-bg)]/55 backdrop-blur-md"
+            ? "border-[var(--ff-line-flat)] bg-[color-mix(in_srgb,var(--ff-bg)_72%,transparent)] backdrop-blur-md"
             : "border-transparent bg-transparent",
         )}
       >
@@ -301,7 +390,7 @@ export function TopNav() {
               })}
             </div>
 
-            <div className="flex shrink-0 items-center gap-3">
+            <div className="ml-auto flex shrink-0 items-center gap-3">
               <span className="hidden text-xs tabular-nums text-white/40 sm:inline">
                 {timeLabel}
               </span>
@@ -314,20 +403,12 @@ export function TopNav() {
               </SoundLink>
               {user ? (
                 <>
-                  <button
-                    type="button"
-                    onClick={() => playRuixenClick("soft")}
-                    className="hidden rounded-md p-1.5 text-white/45 transition hover:bg-white/5 hover:text-white md:inline-flex"
-                    aria-label={t("notifications")}
-                  >
-                    <Bell className={iconClass} strokeWidth={ICON_STROKE} />
-                  </button>
+                  <NotificationsBell />
                   <button
                     ref={accountTriggerRef}
                     type="button"
-                    data-ff-glass-menu=""
                     onClick={toggleAccountMenu}
-                    className="hidden overflow-hidden rounded-full md:inline-flex"
+                    className="inline-flex overflow-hidden rounded-full"
                     aria-label={t("profile")}
                     aria-haspopup="menu"
                     aria-expanded={accountOpen}
@@ -339,34 +420,41 @@ export function TopNav() {
                       />
                     ) : (
                       <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/10">
-                        <User className="h-3.5 w-3.5" strokeWidth={ICON_STROKE} />
+                        <User
+                          className="h-3.5 w-3.5"
+                          strokeWidth={ICON_STROKE}
+                        />
                       </span>
                     )}
                   </button>
-                  <GlassMenu
+                  <GooeyPopover
                     open={accountOpen}
-                    x={accountPos.x}
-                    y={accountPos.y}
                     onClose={closeAccount}
+                    anchorRef={accountTriggerRef}
                     width={ACCOUNT_MENU_WIDTH}
+                    ariaLabel={t("profile")}
+                    triggerContent={
+                      avatar ? (
+                        <LiveMedia
+                          src={avatar}
+                          className="h-6 w-6 rounded-full object-cover"
+                        />
+                      ) : (
+                        <User
+                          className="h-3.5 w-3.5"
+                          strokeWidth={ICON_STROKE}
+                        />
+                      )
+                    }
                   >
-                    <AccountMenu
-                      onJoin={openJoin}
-                      onSettings={openSettings}
-                      onProfile={openProfile}
-                      onQr={openQr}
-                      joinLabel={t("joinCode")}
-                      settingsLabel={t("settings")}
-                      profileLabel={t("viewProfile")}
-                      qrLabel={t("myQr")}
-                    />
-                  </GlassMenu>
+                    <AccountMenuPanel {...accountMenuProps} />
+                  </GooeyPopover>
                 </>
               ) : (
                 <SoundLink
                   href={loginHref(pathname)}
                   sound="soft"
-                  className="hidden px-2 py-1 text-sm font-medium text-white/80 transition hover:text-white sm:inline"
+                  className="px-2 py-1 text-sm font-medium text-white/80 transition hover:text-white"
                 >
                   {t("signIn")}
                 </SoundLink>
@@ -376,6 +464,7 @@ export function TopNav() {
                 className="inline-flex rounded-md p-1.5 text-white/70 md:hidden"
                 onClick={() => {
                   playRuixenClick("soft");
+                  setAccountOpen(false);
                   setMobileOpen((v) => !v);
                 }}
                 aria-label={t("menu")}
@@ -415,38 +504,6 @@ export function TopNav() {
               <Plus className="h-5 w-5" strokeWidth={ICON_STROKE} />
               {t("createGroup")}
             </SoundLink>
-            {user ? (
-              <>
-                <div className="mt-2 flex flex-col gap-0.5">
-                  <AccountMenu
-                    onJoin={openJoin}
-                    onSettings={openSettings}
-                    onProfile={openProfile}
-                    onQr={openQr}
-                    joinLabel={t("joinCode")}
-                    settingsLabel={t("settings")}
-                    profileLabel={t("viewProfile")}
-                    qrLabel={t("myQr")}
-                  />
-                </div>
-                <button
-                  type="button"
-                  onClick={() => void handleLogout()}
-                  className="mt-4 rounded-xl px-3 py-3 text-left text-white/40"
-                >
-                  {t("logout")}
-                </button>
-              </>
-            ) : (
-              <SoundLink
-                href={loginHref(pathname)}
-                sound="soft"
-                onClick={() => setMobileOpen(false)}
-                className="mt-4 rounded-xl px-3 py-3 text-white/80"
-              >
-                {t("signIn")}
-              </SoundLink>
-            )}
           </div>
         </div>
       )}

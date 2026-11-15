@@ -16,7 +16,7 @@ import { useSurface } from "@/components/surface-provider";
 import { cn } from "@/lib/utils";
 
 const FLAT_SURFACE =
-  "relative overflow-hidden border border-white/10 bg-[var(--ff-surface)] shadow-none";
+  "relative overflow-hidden border-0 bg-white/[0.08] shadow-none backdrop-blur-xl backdrop-saturate-150";
 
 type MapGeometry = {
   width: number; // element width, CSS px, integer

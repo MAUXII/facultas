@@ -24,18 +24,21 @@ export function accessFor(input: {
   role: HubRole | null;
   writers: CommunityWriters;
   asMember?: boolean;
+  isGuest?: boolean;
 }): Access {
   const asMember = input.asMember === true;
   const effective: HubRole | null =
     asMember && input.role === "admin" ? "member" : input.role;
+  const guest = input.isGuest === true;
   return {
     role: input.role,
     effective,
-    canEditCommunity: input.role === "admin" && !asMember,
-    canEditGrade: effective === "admin",
-    canWriteAvisos: !!effective && canWrite(input.writers.avisos, effective),
+    canEditCommunity: !guest && input.role === "admin" && !asMember,
+    canEditGrade: !guest && effective === "admin",
+    canWriteAvisos:
+      !guest && !!effective && canWrite(input.writers.avisos, effective),
     canWriteMateriais:
-      !!effective && canWrite(input.writers.materiais, effective),
+      !guest && !!effective && canWrite(input.writers.materiais, effective),
     showMemberPreview: input.role === "admin" && asMember,
   };
 }
