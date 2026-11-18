@@ -10,16 +10,34 @@ import {
   Link2,
   Megaphone,
   MoreHorizontal,
+  Shield,
+  ShieldCheck,
+  User,
   UserMinus,
   Users,
   X,
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "@/components/ui/use-toast";
-import { GooeyMenuItem, GooeyPopover } from "@/components/ui/gooey-popover";
+import {
+  GooeyMenuItem,
+  GooeyMenuLabel,
+  GooeyMenuSep,
+  GooeyPopover,
+} from "@/components/ui/gooey-popover";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import {
+  canRemoveMember,
+  describeRole,
+  labelOfRole,
+  memberRoleOf,
+  rankOf,
+  rolesFor,
+  type MemberRole,
+} from "@/lib/member-roles";
+import {
   aprovarMembro,
+  definirPapel,
   listarMateriais,
   listarMembros,
   listarPosts,
@@ -72,20 +90,30 @@ export function CommunityHub({
   viaLink = false,
   publicId,
   institutionId = null,
+  initialTab,
+  authorId,
 }: {
   communityId: string;
   userId: string | null;
+  /** Autor da sala: aparece como Dono e não pode ser rebaixado. */
+  authorId?: string;
   description?: string;
   kind?: string;
   access: Access;
   viaLink?: boolean;
   publicId?: string;
   institutionId?: string | null;
+  /** Ex.: ?tab=grade vindo do calendário. */
+  initialTab?: string | null;
 }) {
   const canPost = access.canWriteAvisos;
   const canAddMaterial = access.canWriteMateriais;
   const tabs = tabsFor(kind);
-  const [tab, setTab] = useState<TabId>("inicio");
+  const [tab, setTab] = useState<TabId>(() => {
+    const wanted = initialTab as TabId | undefined;
+    if (wanted && tabs.some((item) => item.value === wanted)) return wanted;
+    return "inicio";
+  });
   const [posts, setPosts] = useState<PostRow[]>([]);
   const [resources, setResources] = useState<ResourceRow[]>([]);
   const [members, setMembers] = useState<MemberRow[]>([]);
@@ -101,6 +129,11 @@ export function CommunityHub({
   const [memberMenu, setMemberMenu] = useState<MemberRow | null>(null);
   const memberMenuRef = useRef<HTMLButtonElement | null>(null);
 
+  const actorRole: MemberRole | null =
+    viaLink || access.showMemberPreview ? null : access.memberRole;
+  const roleOf = (member: MemberRow) =>
+    memberRoleOf({ role: member.role, isAuthor: member.user_id === authorId });
+
   const removeMember = async (member: MemberRow) => {
     setReviewing(member.user_id);
     try {
@@ -114,7 +147,32 @@ export function CommunityHub({
       console.error(err);
       toast({
         title: "Não deu para remover",
-        description: "Só quem criou a sala pode remover membros.",
+        description: "Só admins removem quem tem papel abaixo do deles.",
+        variant: "destructive",
+      });
+    } finally {
+      setReviewing(null);
+    }
+  };
+
+  const changeRole = async (member: MemberRow, next: MemberRole) => {
+    if (next === "owner" || next === roleOf(member)) return;
+    setReviewing(member.user_id);
+    playRuixenClick("action");
+    try {
+      await definirPapel(communityId, member.user_id, next);
+      setMembers((list) =>
+        list.map((m) => (m.user_id === member.user_id ? { ...m, role: next } : m)),
+      );
+      toast({
+        title: "Papel atualizado",
+        description: `${member.name} agora é ${labelOfRole(next).toLowerCase()}.`,
+      });
+    } catch (err) {
+      console.error(err);
+      toast({
+        title: "Não deu para mudar o papel",
+        description: "Você só muda o papel de quem está abaixo de você.",
         variant: "destructive",
       });
     } finally {
@@ -145,7 +203,7 @@ export function CommunityHub({
       console.error(err);
       toast({
         title: "Não deu para concluir",
-        description: "Só quem criou a sala pode aprovar pedidos.",
+        description: "Só moderadores e admins aprovam pedidos.",
         variant: "destructive",
       });
     } finally {
@@ -356,12 +414,19 @@ export function CommunityHub({
               .sort(
                 (a, b) =>
                   Number(b.status === "pending") -
-                  Number(a.status === "pending"),
+                    Number(a.status === "pending") ||
+                  rankOf(roleOf(b)) - rankOf(roleOf(a)),
               )
               .map((member) => {
                 const pending = member.status === "pending";
                 const canReview =
-                  pending && access.canEditCommunity && !viaLink;
+                  pending && access.canReviewMembers && !viaLink;
+                const role = roleOf(member);
+                const hasMenu =
+                  !pending &&
+                  member.user_id !== userId &&
+                  (rolesFor(actorRole, role).length > 0 ||
+                    canRemoveMember(actorRole, role));
                 return (
                   <GlassCard
                     key={member.user_id}
@@ -407,15 +472,17 @@ export function CommunityHub({
                       </div>
                     ) : (
                       <div className="flex shrink-0 items-center gap-1">
-                        <span className="text-xs text-white/35">
-                          {member.role === "admin" ? "Admin" : "Membro"}
+                        <span
+                          className={
+                            role === "member"
+                              ? "text-xs text-white/35"
+                              : "rounded-[5px] bg-white/[0.06] px-1.5 py-0.5 text-[11px] font-medium text-white/70"
+                          }
+                        >
+                          {labelOfRole(role)}
                           {pending ? " · pendente" : ""}
                         </span>
-                        {access.canEditCommunity &&
-                        !viaLink &&
-                        !pending &&
-                        member.role !== "admin" &&
-                        member.user_id !== userId ? (
+                        {hasMenu ? (
                           <button
                             type="button"
                             disabled={reviewing === member.user_id}
@@ -453,18 +520,57 @@ export function CommunityHub({
               <MoreHorizontal className="h-4 w-4" strokeWidth={1.75} />
             }
           >
-            {memberMenu ? (
-              <GooeyMenuItem
-                icon={<UserMinus strokeWidth={1.5} />}
-                title={`Remover ${memberMenu.name}`}
-                description="Perde o acesso à sala. Pode pedir para entrar de novo."
-                onClick={() => {
+            {memberMenu
+              ? (() => {
                   const target = memberMenu;
-                  setMemberMenu(null);
-                  void removeMember(target);
-                }}
-              />
-            ) : null}
+                  const current = roleOf(target);
+                  const options = rolesFor(actorRole, current);
+                  const removable = canRemoveMember(actorRole, current);
+                  return (
+                    <>
+                      {options.length > 0 ? (
+                        <>
+                          <GooeyMenuLabel>Papel na sala</GooeyMenuLabel>
+                          {options.map((option) => (
+                            <GooeyMenuItem
+                              key={option}
+                              role="menuitemradio"
+                              checked={option === current}
+                              icon={
+                                option === "admin" ? (
+                                  <ShieldCheck strokeWidth={1.5} />
+                                ) : option === "moderator" ? (
+                                  <Shield strokeWidth={1.5} />
+                                ) : (
+                                  <User strokeWidth={1.5} />
+                                )
+                              }
+                              title={labelOfRole(option)}
+                              description={describeRole(option)}
+                              onClick={() => {
+                                setMemberMenu(null);
+                                void changeRole(target, option);
+                              }}
+                            />
+                          ))}
+                        </>
+                      ) : null}
+                      {options.length > 0 && removable ? <GooeyMenuSep /> : null}
+                      {removable ? (
+                        <GooeyMenuItem
+                          icon={<UserMinus strokeWidth={1.5} />}
+                          title={`Remover ${target.name}`}
+                          description="Perde o acesso à sala. Pode pedir para entrar de novo."
+                          onClick={() => {
+                            setMemberMenu(null);
+                            void removeMember(target);
+                          }}
+                        />
+                      ) : null}
+                    </>
+                  );
+                })()
+              : null}
           </GooeyPopover>
         </div>
       )}

@@ -80,6 +80,59 @@ describe("Access", () => {
     expect(access.canWriteAvisos).toBe(false);
   });
 
+  test("active moderator keeps moderator role", () => {
+    expect(
+      roleFrom({
+        userId: MEMBER,
+        authorId: AUTHOR,
+        membership: { role: "moderator", status: "active" },
+      }),
+    ).toBe("moderator");
+  });
+
+  test("moderator writes avisos and materiais and reviews requests", () => {
+    const access = accessFor({
+      role: "moderator",
+      writers: defaultWriters(),
+    });
+    expect(access.canWriteAvisos).toBe(true);
+    expect(access.canWriteMateriais).toBe(true);
+    expect(access.canReviewMembers).toBe(true);
+    expect(access.canManageRoles).toBe(false);
+    expect(access.canEditCommunity).toBe(false);
+    expect(access.canEditGrade).toBe(false);
+  });
+
+  test("owner flag only sticks to admins and enables role management", () => {
+    const owner = accessFor({
+      role: "admin",
+      writers: defaultWriters(),
+      isOwner: true,
+    });
+    expect(owner.isOwner).toBe(true);
+    expect(owner.memberRole).toBe("owner");
+    expect(owner.canManageRoles).toBe(true);
+
+    const fake = accessFor({
+      role: "member",
+      writers: defaultWriters(),
+      isOwner: true,
+    });
+    expect(fake.isOwner).toBe(false);
+    expect(fake.canManageRoles).toBe(false);
+  });
+
+  test("member preview drops review and role management", () => {
+    const access = accessFor({
+      role: "admin",
+      writers: defaultWriters(),
+      asMember: true,
+      isOwner: true,
+    });
+    expect(access.canReviewMembers).toBe(false);
+    expect(access.canManageRoles).toBe(false);
+  });
+
   test("outsider cannot do anything", () => {
     const access = accessFor({
       role: null,

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useParams, usePathname, useRouter } from "next/navigation";
+import { useParams, usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { CommunityHub } from "@/components/community-hub/community-hub";
 import { SoundLink } from "@/components/sound-link/sound-link";
@@ -35,6 +35,7 @@ import {
 } from "lucide-react";
 import { GooeyMenuItem, GooeyPopover } from "@/components/ui/gooey-popover";
 import { accessFor, roleFrom } from "@/lib/access";
+import { labelOfRole, memberRoleOf } from "@/lib/member-roles";
 import { settingsFrom } from "@/lib/hub";
 import { accessByLink, roomFeedUrl } from "@/lib/link-access";
 import { toWebcal } from "@/lib/ics";
@@ -134,6 +135,7 @@ function memberAvatarImage(name: string, avatarUrl: string | null) {
 
 export default function ComunidadePage() {
   const params = useParams();
+  const searchParams = useSearchParams();
   const id = String(params.id);
   const router = useRouter();
   const pathname = usePathname();
@@ -202,6 +204,20 @@ export default function ComunidadePage() {
     setAsMember(false);
     setAsLink(false);
   }, [id]);
+
+  // ?editar=1 vem do "Configurar" no botão direito da lista de salas.
+  useEffect(() => {
+    if (searchParams.get("editar") !== "1" || loading || !comunidade || !user) return;
+    const canEdit =
+      !isGuestSession(user, usuario) &&
+      roleFrom({ userId: user.id, authorId: comunidade.author_id, membership }) ===
+        "admin";
+    if (canEdit) setEditOpen(true);
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete("editar");
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  }, [searchParams, loading, comunidade, user, usuario, membership, pathname, router]);
 
   useEffect(() => {
     if (!comunidade || membership?.status !== "active") return;
@@ -355,9 +371,12 @@ export default function ComunidadePage() {
       ? "Visitante"
       : member.username
         ? `@${member.username}`
-        : member.role === "admin"
-          ? "Admin"
-          : "Membro",
+        : labelOfRole(
+            memberRoleOf({
+              role: member.role,
+              isAuthor: member.user_id === comunidade.author_id,
+            }),
+          ),
     image: memberAvatarImage(member.name, member.avatar_url),
   }));
   const showInstituicao =
@@ -374,6 +393,7 @@ export default function ComunidadePage() {
     writers: settingsFrom(comunidade),
     asMember,
     isGuest: isGuestSession(user, usuario),
+    isOwner: !!user && user.id === comunidade.author_id,
   });
   const isMember = role !== null;
   const linkOpen = comunidade.link_access === true;
@@ -691,6 +711,8 @@ export default function ComunidadePage() {
                       access={hubAccess}
                       viaLink={readingByLink}
                       publicId={comunidade.public_id}
+                      initialTab={searchParams.get("tab")}
+                      authorId={comunidade.author_id}
                     />
                   </div>
                 ) : null}

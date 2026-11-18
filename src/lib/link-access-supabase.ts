@@ -1,6 +1,7 @@
 import { mentionsMissingLinkAccess } from "@/lib/link-access";
 import type { MemberRow, PostRow, ResourceRow } from "@/lib/community-hub";
 import { WEEKDAYS, type Aula, type Weekday } from "@/lib/grade";
+import { hubRoleFrom } from "@/lib/hub";
 import { createClient } from "@/lib/supabase/client";
 import type { Community } from "@/types";
 
@@ -110,7 +111,7 @@ export async function lerSalaPeloLink(publicId: string): Promise<LinkRoom> {
     resources: (resources.data || []) as ResourceRow[],
     members: ((members.data || []) as MemberRow[]).map((row) => ({
       ...row,
-      role: row.role === "admin" ? "admin" : "member",
+      role: hubRoleFrom(row.role),
       status: "active",
       username: row.username ?? null,
       avatar_url: row.avatar_url ?? null,

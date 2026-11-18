@@ -4,7 +4,13 @@ import {
 } from "@/lib/aviso-agenda";
 
 export type WriterPolicy = "admins" | "members";
-export type HubRole = "admin" | "member";
+export type HubRole = "admin" | "moderator" | "member";
+
+export function hubRoleFrom(value: string | null | undefined): HubRole {
+  if (value === "admin") return "admin";
+  if (value === "moderator") return "moderator";
+  return "member";
+}
 
 export type CommunityWriters = {
   avisos: WriterPolicy;
@@ -43,7 +49,7 @@ export function defaultWriters(): CommunityWriters {
 }
 
 export function canWrite(policy: WriterPolicy, role: HubRole) {
-  return role === "admin" || policy === "members";
+  return role === "admin" || role === "moderator" || policy === "members";
 }
 
 function asPolicy(value: string | null | undefined): WriterPolicy {

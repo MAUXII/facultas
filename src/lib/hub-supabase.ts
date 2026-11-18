@@ -1,9 +1,9 @@
 import { createClient } from "@/lib/supabase/client";
 import {
   defaultWriters,
+  hubRoleFrom,
   settingsFrom,
   type HubPort,
-  type HubRole,
 } from "@/lib/hub";
 
 export function supabaseHubPort(): HubPort {
@@ -19,7 +19,7 @@ export function supabaseHubPort(): HubPort {
         .maybeSingle();
       if (error) throw error;
       if (!data || data.status !== "active") return null;
-      return data.role === "admin" ? "admin" : ("member" as HubRole);
+      return hubRoleFrom(data.role);
     },
 
     async settings(communityId) {

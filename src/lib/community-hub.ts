@@ -1,9 +1,10 @@
 import { mentionsMissingAgenda } from "@/lib/aviso-agenda";
 import { createClient } from "@/lib/supabase/client";
+import { hubRoleFrom, type HubRole } from "@/lib/hub";
 
 export type MemberRow = {
   user_id: string;
-  role: "member" | "admin";
+  role: HubRole;
   status: "active" | "pending" | "removed";
   joined_at: string;
   name: string;
@@ -86,7 +87,7 @@ export async function listarMembros(communityId: string): Promise<MemberRow[]> {
     const profile = profileById.get(row.user_id) || {};
     return {
       user_id: row.user_id,
-      role: row.role,
+      role: hubRoleFrom(row.role),
       status: row.status,
       joined_at: row.joined_at,
       name: profile.name || "Membro",
@@ -194,42 +195,53 @@ export async function listarSessoesDaComunidade(
   return (data || []) as SessionRow[];
 }
 
-/** Admin aceita um pedido pendente (RLS: só o autor da sala, com conta completa). */
+/** Moderador ou acima aceita um pedido pendente (RPC review_member). */
 export async function aprovarMembro(communityId: string, userId: string) {
   const supabase = createClient();
-  const { error } = await supabase
-    .from("community_members")
-    .update({ status: "active" })
-    .eq("community_id", communityId)
-    .eq("user_id", userId)
-    .eq("status", "pending");
+  const { error } = await supabase.rpc("review_member", {
+    p_community_id: communityId,
+    p_user_id: userId,
+    p_approve: true,
+  });
   if (error) throw error;
 }
 
-/** Admin recusa um pedido pendente: o vínculo some e a pessoa pode pedir de novo. */
+/** Moderador ou acima recusa um pedido: o vínculo some e a pessoa pode pedir de novo. */
 export async function recusarMembro(communityId: string, userId: string) {
   const supabase = createClient();
-  const { error } = await supabase
-    .from("community_members")
-    .delete()
-    .eq("community_id", communityId)
-    .eq("user_id", userId)
-    .eq("status", "pending");
+  const { error } = await supabase.rpc("review_member", {
+    p_community_id: communityId,
+    p_user_id: userId,
+    p_approve: false,
+  });
   if (error) throw error;
 }
 
 /**
- * Dono tira um membro ativo da sala (RLS: autor com conta completa). Admins
- * não saem por aqui. A pessoa pode pedir para entrar de novo.
+ * Admin ou dono tira da sala alguém de papel menor (RPC remove_member).
+ * A pessoa pode pedir para entrar de novo.
  */
 export async function removerMembro(communityId: string, userId: string) {
   const supabase = createClient();
-  const { error } = await supabase
-    .from("community_members")
-    .delete()
-    .eq("community_id", communityId)
-    .eq("user_id", userId)
-    .neq("role", "admin");
+  const { error } = await supabase.rpc("remove_member", {
+    p_community_id: communityId,
+    p_user_id: userId,
+  });
+  if (error) throw error;
+}
+
+/** Troca o papel de um membro ativo; a hierarquia é checada na RPC set_member_role. */
+export async function definirPapel(
+  communityId: string,
+  userId: string,
+  role: HubRole,
+) {
+  const supabase = createClient();
+  const { error } = await supabase.rpc("set_member_role", {
+    p_community_id: communityId,
+    p_user_id: userId,
+    p_role: role,
+  });
   if (error) throw error;
 }
 

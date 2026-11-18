@@ -42,6 +42,8 @@ export type Community = {
   updated_at: string;
   author_name?: string;
   members_count?: number;
+  /** Papel do usuário logado nessa sala (só em "minhas comunidades"). */
+  my_role?: "admin" | "moderator" | "member";
 };
 
 export type Comunidade = Community;

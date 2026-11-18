@@ -112,6 +112,10 @@ describe("Hub writers", () => {
     expect(canWrite("members", "member")).toBe(true);
   });
 
+  test("canWrite: moderator always writes", () => {
+    expect(canWrite("admins", "moderator")).toBe(true);
+  });
+
   test("settingsFrom treats missing columns as admins", () => {
     expect(settingsFrom({})).toEqual({ avisos: "admins", materiais: "admins" });
     expect(

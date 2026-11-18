@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/client";
 import { buscarSalaPeloLink } from "@/lib/link-access-supabase";
 import type { Community } from "@/types";
 import { isPublicId, isUuid } from "@/lib/public-id";
+import { hubRoleFrom } from "@/lib/hub";
 
 export async function listarMinhasComunidades(
   userId: string
@@ -10,13 +11,16 @@ export async function listarMinhasComunidades(
 
   const { data: members, error: membersError } = await supabase
     .from("community_members")
-    .select("community_id")
+    .select("community_id, role")
     .eq("user_id", userId)
     .eq("status", "active");
 
   if (membersError) throw membersError;
 
-  const ids = (members || []).map((m) => m.community_id);
+  const roleById = new Map(
+    (members || []).map((m) => [m.community_id as string, hubRoleFrom(m.role)]),
+  );
+  const ids = Array.from(roleById.keys());
   if (ids.length === 0) return [];
 
   const { data, error } = await supabase
@@ -26,7 +30,11 @@ export async function listarMinhasComunidades(
     .order("updated_at", { ascending: false });
 
   if (error) throw error;
-  return (data || []) as Community[];
+  return ((data || []) as Community[]).map((community) => ({
+    ...community,
+    my_role:
+      community.author_id === userId ? "admin" : roleById.get(community.id),
+  }));
 }
 
 export async function listarComunidadesPublicas(): Promise<Community[]> {
