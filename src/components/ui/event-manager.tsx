@@ -27,7 +27,10 @@ import {
 } from "@/components/ui/gooey-popover";
 import { EventCompose, type EventDraft } from "@/components/calendar/event-compose";
 import { MagneticTabs } from "@/components/ruixen/magnetic-tabs";
-import { useFacultasEventDrag } from "@/hooks/use-facultas-event-drag";
+import {
+  useFacultasEventDrag,
+  type FacultasDragMode,
+} from "@/hooks/use-facultas-event-drag";
 
 export interface Event {
   id: string;
@@ -886,6 +889,12 @@ function formatClock(date: Date) {
   return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
+function clockOfMinutes(total: number) {
+  const h = Math.floor(total / 60) % 24;
+  const m = total % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+}
+
 type LaidOut = {
   event: Event;
   top: number;
@@ -1029,6 +1038,7 @@ function TimedEventBlock({
   tone = 0,
   liveTop,
   liveHeight,
+  liveRange,
   dragging,
   onPointerDown,
   onPointerMove,
@@ -1042,8 +1052,15 @@ function TimedEventBlock({
   tone?: number;
   liveTop?: number;
   liveHeight?: number;
+  /** "19:15 – 20:30" enquanto arrasta. */
+  liveRange?: string;
   dragging?: boolean;
-  onPointerDown?: (e: React.PointerEvent, event: Event, layout: { top: number; height: number }) => void;
+  onPointerDown?: (
+    e: React.PointerEvent,
+    event: Event,
+    layout: { top: number; height: number },
+    mode?: FacultasDragMode,
+  ) => void;
   onPointerMove?: (e: React.PointerEvent) => void;
   onPointerUp?: (e: React.PointerEvent) => void;
   onPointerCancel?: (e: React.PointerEvent) => void;
@@ -1106,7 +1123,11 @@ function TimedEventBlock({
         <div className="truncate text-[11px] font-medium leading-tight sm:text-[12px]">
           {event.title}
         </div>
-        {!dense || height > 36 ? (
+        {liveRange ? (
+          <div className="truncate text-[10px] font-medium tabular-nums opacity-90">
+            {liveRange}
+          </div>
+        ) : !dense || height > 36 ? (
           <div className="truncate text-[10px] opacity-65">
             {formatClock(event.startTime)}
             {event.lockKind === "aula"
@@ -1119,6 +1140,15 @@ function TimedEventBlock({
           </div>
         ) : null}
       </div>
+      {!event.locked && onPointerDown ? (
+        <div
+          aria-hidden
+          onPointerDown={(e) => onPointerDown(e, event, { top, height }, "resize")}
+          className="group/resize absolute inset-x-0 bottom-0 flex h-2 cursor-ns-resize items-end justify-center"
+        >
+          <span className="mb-[3px] h-[2px] w-5 rounded-full bg-current opacity-0 transition-opacity group-hover/resize:opacity-50" />
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -1499,6 +1529,11 @@ function TimeGridColumn({
             tone={toneIndexForDay(dayEvents, item.event.id)}
             liveTop={isLive ? drag.live!.top : undefined}
             liveHeight={isLive ? drag.live!.height : undefined}
+            liveRange={
+              isLive
+                ? `${clockOfMinutes(drag.live!.startMin)} – ${clockOfMinutes(drag.live!.endMin)}`
+                : undefined
+            }
             dragging={Boolean(isLive)}
             onPointerDown={drag.onPointerDown}
             onPointerMove={drag.onPointerMove}

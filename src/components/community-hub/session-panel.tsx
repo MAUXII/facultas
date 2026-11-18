@@ -115,7 +115,7 @@ export function SessionPanel({
               playRuixenClick("soft");
               setCreateOpen(true);
             }}
-            className="text-sm text-white/40 transition hover:text-white"
+            className="-my-1 rounded-[8px] bg-white/[0.06] px-3.5 py-2.5 text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
           >
             Abrir sessão
           </button>

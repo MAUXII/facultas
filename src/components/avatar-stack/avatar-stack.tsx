@@ -33,6 +33,7 @@ export function AvatarStack({
               <LiveMedia
                 src={person.avatar_url}
                 className="h-full w-full object-cover"
+                fallback={person.name.charAt(0).toUpperCase()}
               />
             ) : (
               person.name.charAt(0).toUpperCase()

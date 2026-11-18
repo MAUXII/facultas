@@ -269,9 +269,8 @@ body::-webkit-scrollbar {
   box-shadow: 0 25px 50px -12px rgb(0 0 0 / 0.55);
 }
 
-/* Flat default (sem capa): cinza quente, não pretão. Com capa, HubAtmosphere sobrescreve. */
+/* Flat muda só os componentes; o fundo fica igual ao do glass. */
 html[data-ff-surface="flat"] {
-  --ff-bg: #17151a;
   --ff-surface: #221f26;
   --ff-surface-hover: #2a2730;
   --ff-line: var(--ff-line-flat);
@@ -315,6 +314,15 @@ html[data-ff-surface="flat"] textarea.ff-display,
 html[data-ff-surface="flat"] textarea[data-ff-bare-input] {
   background-color: transparent !important;
   border-color: transparent !important;
+}
+
+/* O Safari do iPhone dá zoom ao focar campo com fonte abaixo de 16px. */
+@supports (-webkit-touch-callout: none) {
+  input:is(.text-xs, .text-sm, .text-\[11px\], .text-\[12px\], .text-\[13px\], .text-\[14px\], .text-\[15px\]),
+  textarea:is(.text-xs, .text-sm, .text-\[11px\], .text-\[12px\], .text-\[13px\], .text-\[14px\], .text-\[15px\]),
+  select:is(.text-xs, .text-sm, .text-\[11px\], .text-\[12px\], .text-\[13px\], .text-\[14px\], .text-\[15px\]) {
+    font-size: 16px;
+  }
 }
 
 html[data-ff-surface="flat"] .rounded-2xl {

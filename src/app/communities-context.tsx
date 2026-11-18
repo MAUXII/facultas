@@ -8,6 +8,8 @@ import { toast } from "@/components/ui/use-toast";
 
 type CommunitiesContextProps = {
   communities: Community[];
+  /** A lista já veio do servidor ao menos uma vez para este usuário. */
+  loaded: boolean;
   fetchCommunities: () => Promise<void>;
 };
 
@@ -29,6 +31,7 @@ export function CommunitiesProvider({
   children: React.ReactNode;
 }) {
   const [communities, setCommunities] = useState<Community[]>([]);
+  const [loadedFor, setLoadedFor] = useState<string | null>(null);
   const { user } = useAuth();
 
   const fetchCommunities = useCallback(async () => {
@@ -46,11 +49,17 @@ export function CommunitiesProvider({
         description: "Tente de novo em instantes.",
         variant: "destructive",
       });
+    } finally {
+      setLoadedFor(user.id);
     }
   }, [user]);
 
+  const loaded = Boolean(user) && loadedFor === user?.id;
+
   return (
-    <CommunitiesContext.Provider value={{ communities, fetchCommunities }}>
+    <CommunitiesContext.Provider
+      value={{ communities, loaded, fetchCommunities }}
+    >
       {children}
     </CommunitiesContext.Provider>
   );

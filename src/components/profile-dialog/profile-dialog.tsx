@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import {
   CalendarDays,
   ChevronRight,
@@ -11,13 +10,7 @@ import {
   Shield,
   User,
 } from "lucide-react";
-import {
-  Dialog,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { GlassCard } from "@/components/ui/glasscn/glass-card";
+import { GooeyDialog } from "@/components/ui/gooey-popover";
 import { QrCodeDialog } from "@/components/qr-code-dialog/qr-code-dialog";
 import { LiveMedia } from "@/components/live-media/live-media";
 import { useUsuario } from "@/hooks/useUsuario";
@@ -35,6 +28,7 @@ import { useLocale, useTranslations } from "next-intl";
 import { useSurface } from "@/components/surface-provider";
 import type { SurfaceMode } from "@/lib/surface";
 import { FEATURES } from "@/lib/features";
+import { cn } from "@/lib/utils";
 
 type ProfileDialogProps = {
   open: boolean;
@@ -92,19 +86,19 @@ function Row({
       type="button"
       data-snd="select"
       onClick={onClick}
-      className="flex w-full items-center gap-3 px-4 py-3.5 text-left transition hover:bg-white/[0.04]"
+      className="flex w-full items-center gap-3 px-3 py-3 text-left transition hover:bg-white/[0.04]"
     >
       <Icon className="h-4 w-4 shrink-0 text-white/40" strokeWidth={1.5} />
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm text-white/85">{label}</span>
+        <span className="block truncate text-[13px] text-white/85">{label}</span>
         {hint ? (
-          <span className="mt-0.5 block truncate text-xs text-white/55">
+          <span className="mt-0.5 block truncate text-[11px] text-white/45">
             {hint}
           </span>
         ) : null}
       </span>
       {action ? (
-        <span className="shrink-0 text-sm text-white/55">{action}</span>
+        <span className="shrink-0 text-[12px] text-white/50">{action}</span>
       ) : (
         <ChevronRight
           className="h-4 w-4 shrink-0 text-white/25"
@@ -112,6 +106,63 @@ function Row({
         />
       )}
     </button>
+  );
+}
+
+function Section({
+  title,
+  children,
+  className,
+}: {
+  title: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <section>
+      <p className="mb-1.5 px-1 text-[11px] font-medium uppercase tracking-[0.06em] text-white/35">
+        {title}
+      </p>
+      <div
+        className={cn(
+          "overflow-hidden rounded-[8px] bg-white/[0.04]",
+          className,
+        )}
+      >
+        {children}
+      </div>
+    </section>
+  );
+}
+
+function Segmented<T extends string>({
+  value,
+  options,
+  onChange,
+}: {
+  value: T;
+  options: ReadonlyArray<readonly [T, string]>;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div className="flex gap-1.5 p-1.5">
+      {options.map(([mode, label]) => (
+        <button
+          key={mode}
+          type="button"
+          data-snd="select"
+          onClick={() => onChange(mode)}
+          className={cn(
+            "flex-1 rounded-[6px] py-2 text-[13px] font-medium transition",
+            value === mode
+              ? "bg-white text-black"
+              : "text-white/45 hover:bg-white/[0.04] hover:text-white",
+          )}
+        >
+          {label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -201,222 +252,153 @@ export function ProfileDialog({ open, onOpenChange }: ProfileDialogProps) {
 
   return (
     <>
-      <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogPortal>
-          <DialogOverlay className="bg-black/40 backdrop-blur-2xl" />
-          <DialogPrimitive.Content
-            aria-describedby={undefined}
-            className="fixed inset-0 z-[261] overflow-y-auto border-0 bg-[var(--ff-bg)] p-0 shadow-none outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0"
-            onPointerDown={(event) => {
-              if (event.target === event.currentTarget) onOpenChange(false);
-            }}
-          >
-            <div className="mx-auto flex min-h-full w-full max-w-[var(--ff-max-width)] flex-col px-5 pb-16 pt-16 sm:px-8">
-              <div className="mb-12 flex items-center justify-between gap-3">
-                <button
-                  type="button"
-                  onClick={() => onOpenChange(false)}
-                  className="rounded-xl px-4 py-2 text-sm text-white/50 transition hover:text-white"
-                >
-                  {t("close")}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => void handleLogout()}
-                  className="rounded-xl px-4 py-2 text-sm text-white/50 transition hover:text-white"
-                >
-                  {t("logout")}
-                </button>
+      <GooeyDialog
+        open={open}
+        onClose={() => onOpenChange(false)}
+        width={400}
+        ariaLabel={t("settings")}
+      >
+        <div className="flex max-h-[calc(100dvh-2rem)] flex-col">
+          <div className="flex shrink-0 items-center justify-between gap-3 border-b border-white/[0.08] px-4 py-3">
+            <span className="text-[13px] font-medium text-white/80">
+              {t("settings")}
+            </span>
+            <button
+              type="button"
+              onClick={() => void handleLogout()}
+              className="rounded-[6px] px-2 py-1 text-[12px] text-white/45 transition hover:bg-white/[0.06] hover:text-white"
+            >
+              {t("logout")}
+            </button>
+          </div>
+
+          <div className="min-h-0 flex-1 overflow-y-auto px-4 py-4">
+            {loading ? (
+              <div className="flex justify-center py-10">
+                <div className="h-8 w-8 animate-pulse rounded-md bg-white/10" />
               </div>
-
-              <DialogTitle className="ff-display text-4xl font-medium tracking-tight text-white md:text-5xl">
-                {t("settings")}
-              </DialogTitle>
-
-              {loading ? (
-                <div className="mt-16 flex justify-center">
-                  <div className="h-10 w-10 animate-pulse rounded-2xl bg-white/10" />
-                </div>
-              ) : (
-                <div className="mt-12 flex flex-col gap-8">
-                  <section>
-                    <p className="mb-2 text-sm font-medium text-white/70">
-                      {t("account")}
-                    </p>
-                    <GlassCard className="divide-y divide-[var(--ff-line-flat)] gap-0 overflow-hidden py-0 text-white">
-                      <div className="flex items-center gap-4 px-4 py-4">
-                        <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white/10">
-                          {avatarUrl ? (
-                            <LiveMedia
-                              src={avatarUrl}
-                              className="h-full w-full object-cover"
-                            />
-                          ) : (
-                            <span className="flex h-full w-full items-center justify-center text-lg font-semibold text-white/35">
-                              {initial}
-                            </span>
-                          )}
-                        </div>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-white">
-                            {displayName}
-                          </p>
-                          {username ? (
-                            <p className="truncate text-xs text-white/45">
-                              {username}
-                            </p>
-                          ) : null}
-                          {email ? (
-                            <p className="truncate text-xs text-white/50">
-                              {email}
-                            </p>
-                          ) : null}
-                        </div>
-                      </div>
-                      <Row
-                        icon={User}
-                        label={t("editProfile")}
-                        hint={t("editProfileHint")}
-                        onClick={() => go(routes.profile)}
-                      />
-                      {FEATURES.qr ? (
-                        <Row
-                          icon={QrCode}
-                          label={t("qrRow")}
-                          hint={t("qrRowHint")}
-                          onClick={() => {
-                            onOpenChange(false);
-                            setQrOpen(true);
-                          }}
+            ) : (
+              <div className="flex flex-col gap-5">
+                <Section title={t("account")} className="divide-y divide-white/[0.05]">
+                  <div className="flex items-center gap-3 px-3 py-3">
+                    <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-white/10">
+                      {avatarUrl ? (
+                        <LiveMedia
+                          src={avatarUrl}
+                          className="h-full w-full object-cover"
                         />
+                      ) : (
+                        <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-white/35">
+                          {initial}
+                        </span>
+                      )}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-[13px] font-medium text-white">
+                        {displayName}
+                      </p>
+                      {username ? (
+                        <p className="truncate text-[11px] text-white/45">
+                          {username}
+                        </p>
                       ) : null}
-                    </GlassCard>
-                  </section>
-
-                  <section>
-                    <p className="mb-2 text-sm font-medium text-white/70">
-                      {t("language")}
-                    </p>
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        data-snd="select"
-                        onClick={() => setLanguage("pt-BR")}
-                        className={`flex-1 rounded-2xl py-3 text-sm font-medium transition ${
-                          locale === "pt-BR"
-                            ? "bg-white text-black"
-                            : "bg-white/[0.06] text-white/45 hover:text-white"
-                        }`}
-                      >
-                        {t("langPt")}
-                      </button>
-                      <button
-                        type="button"
-                        data-snd="select"
-                        onClick={() => setLanguage("en")}
-                        className={`flex-1 rounded-2xl py-3 text-sm font-medium transition ${
-                          locale === "en"
-                            ? "bg-white text-black"
-                            : "bg-white/[0.06] text-white/45 hover:text-white"
-                        }`}
-                      >
-                        {t("langEn")}
-                      </button>
+                      {email ? (
+                        <p className="truncate text-[11px] text-white/45">
+                          {email}
+                        </p>
+                      ) : null}
                     </div>
-                  </section>
+                  </div>
+                  <Row
+                    icon={User}
+                    label={t("editProfile")}
+                    hint={t("editProfileHint")}
+                    onClick={() => go(routes.profile)}
+                  />
+                  {FEATURES.qr ? (
+                    <Row
+                      icon={QrCode}
+                      label={t("qrRow")}
+                      hint={t("qrRowHint")}
+                      onClick={() => {
+                        onOpenChange(false);
+                        setQrOpen(true);
+                      }}
+                    />
+                  ) : null}
+                </Section>
 
-                  <section>
-                    <p className="mb-2 text-sm font-medium text-white/70">
-                      {t("appearance")}
-                    </p>
-                    <div className="flex gap-2">
-                      {(
-                        [
-                          ["glass", t("surfaceGlass")],
-                          ["flat", t("surfaceFlat")],
-                        ] as const satisfies ReadonlyArray<
-                          readonly [SurfaceMode, string]
-                        >
-                      ).map(([mode, label]) => (
-                        <button
-                          key={mode}
-                          type="button"
-                          data-snd="select"
-                          onClick={() => setSurface(mode)}
-                          className={`flex-1 rounded-2xl py-3 text-sm font-medium transition ${
-                            surface === mode
-                              ? "bg-white text-black"
-                              : "bg-white/[0.06] text-white/45 hover:text-white"
-                          }`}
-                        >
-                          {label}
-                        </button>
-                      ))}
-                    </div>
-                  </section>
+                <Section title={t("language")}>
+                  <Segmented
+                    value={locale as Locale}
+                    options={[
+                      ["pt-BR", t("langPt")],
+                      ["en", t("langEn")],
+                    ]}
+                    onChange={setLanguage}
+                  />
+                </Section>
 
-                  <section>
-                    <p className="mb-2 text-sm font-medium text-white/70">
-                      {t("campus")}
-                    </p>
-                    <GlassCard className="gap-0 overflow-hidden py-0 text-white">
-                      <Row
-                        icon={GraduationCap}
-                        label={campus}
-                        action={t("campusChange")}
-                        onClick={() => go(routes.onboarding)}
-                      />
-                    </GlassCard>
-                  </section>
+                <Section title={t("appearance")}>
+                  <Segmented<SurfaceMode>
+                    value={surface}
+                    options={[
+                      ["glass", t("surfaceGlass")],
+                      ["flat", t("surfaceFlat")],
+                    ]}
+                    onChange={setSurface}
+                  />
+                </Section>
 
-                  <section>
-                    <p className="mb-2 text-sm font-medium text-white/70">
-                      {t("agenda")}
-                    </p>
-                    <GlassCard className="gap-0 overflow-hidden py-0 text-white">
-                      <Row
-                        icon={CalendarDays}
-                        label={t("agendaLink")}
-                        hint={
-                          copyState === "copying"
-                            ? "…"
-                            : copyState === "error"
-                              ? t("agendaCopyError")
-                              : t("agendaHint")
-                        }
-                        action={
-                          copyState === "copied"
-                            ? t("agendaCopied")
-                            : t("agendaCopy")
-                        }
-                        onClick={() => void copyAgenda()}
-                      />
-                    </GlassCard>
-                  </section>
+                <Section title={t("campus")}>
+                  <Row
+                    icon={GraduationCap}
+                    label={campus}
+                    action={t("campusChange")}
+                    onClick={() => go(routes.onboarding)}
+                  />
+                </Section>
 
-                  <section>
-                    <p className="mb-2 text-sm font-medium text-white/70">
-                      {t("about")}
-                    </p>
-                    <GlassCard className="divide-y divide-[var(--ff-line-flat)] gap-0 overflow-hidden py-0 text-white">
-                      <Row
-                        icon={Shield}
-                        label={t("privacy")}
-                        onClick={() => go(routes.privacy)}
-                      />
-                      <Row
-                        icon={FileText}
-                        label={t("terms")}
-                        onClick={() => go(routes.terms)}
-                      />
-                    </GlassCard>
-                  </section>
-                </div>
-              )}
-            </div>
-          </DialogPrimitive.Content>
-        </DialogPortal>
-      </Dialog>
+                <Section title={t("agenda")}>
+                  <Row
+                    icon={CalendarDays}
+                    label={t("agendaLink")}
+                    hint={
+                      copyState === "copying"
+                        ? "…"
+                        : copyState === "error"
+                          ? t("agendaCopyError")
+                          : t("agendaHint")
+                    }
+                    action={
+                      copyState === "copied"
+                        ? t("agendaCopied")
+                        : t("agendaCopy")
+                    }
+                    onClick={() => void copyAgenda()}
+                  />
+                </Section>
+
+                <Section
+                  title={t("about")}
+                  className="divide-y divide-white/[0.05]"
+                >
+                  <Row
+                    icon={Shield}
+                    label={t("privacy")}
+                    onClick={() => go(routes.privacy)}
+                  />
+                  <Row
+                    icon={FileText}
+                    label={t("terms")}
+                    onClick={() => go(routes.terms)}
+                  />
+                </Section>
+              </div>
+            )}
+          </div>
+        </div>
+      </GooeyDialog>
       <QrCodeDialog open={qrOpen} onOpenChange={setQrOpen} />
     </>
   );

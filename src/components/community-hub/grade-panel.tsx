@@ -60,9 +60,11 @@ export function GradePanel({
     return <GlassCard className="h-24 gap-0 animate-pulse p-0" />;
   }
 
+  const empty = aulas.length === 0;
+
   return (
     <div className="flex flex-col gap-8">
-      {canEdit ? (
+      {canEdit && !empty ? (
         <div className="flex justify-end">
           <button
             ref={addTriggerRef}
@@ -71,31 +73,49 @@ export function GradePanel({
               playRuixenClick("soft");
               setAdding(true);
             }}
-            className="text-sm text-white/40 transition hover:text-white"
+            className="-my-1 rounded-[8px] bg-white/[0.06] px-3.5 py-2.5 text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
           >
             {t("add")}
           </button>
         </div>
       ) : null}
 
-      <GradeWeek
-        aulas={aulas}
-        dayShortLabels={dayShortLabels}
-        mode={canEdit ? "admin" : "member"}
-        onSelectAula={
-          canEdit
-            ? (aula) => {
-                playRuixenClick("soft");
-                setEditing(aula);
-              }
-            : undefined
-        }
-      />
+      {!empty ? (
+        <GradeWeek
+          aulas={aulas}
+          dayShortLabels={dayShortLabels}
+          mode={canEdit ? "admin" : "member"}
+          onSelectAula={
+            canEdit
+              ? (aula) => {
+                  playRuixenClick("soft");
+                  setEditing(aula);
+                }
+              : undefined
+          }
+        />
+      ) : null}
 
-      {aulas.length === 0 ? (
-        <p className="text-center text-sm text-white/40">
-          {canEdit ? t("emptyAdmin") : t("emptyMember")}
-        </p>
+      {empty ? (
+        <div className="flex flex-col items-center px-6 py-8 text-center">
+          <p className="text-sm text-white/40">
+            {canEdit ? t("emptyAdmin") : t("emptyMember")}
+          </p>
+          {canEdit ? (
+            <button
+              ref={addTriggerRef}
+              type="button"
+              data-snd="select"
+              onClick={() => {
+                playRuixenClick("soft");
+                setAdding(true);
+              }}
+              className="mt-4 rounded-[6px] bg-white px-4 py-2 text-[13px] font-semibold text-black transition hover:bg-white/90"
+            >
+              {t("add")}
+            </button>
+          ) : null}
+        </div>
       ) : null}
 
       {canEdit ? (

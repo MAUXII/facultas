@@ -145,12 +145,14 @@
     "placeholder": "Community code",
     "submit": "Join",
     "joining": "Joining…",
-    "invalid": "Paste the code the class rep gave you.",
-    "notFound": "That code does not exist.",
+    "invalid": "Incomplete code. Use all 6 characters.",
+    "notFound": "Invalid code. Check with whoever invited you.",
     "active": "You are in",
+    "alreadyMember": "You are already in this room",
     "pending": "Request sent",
     "pendingHint": "Wait for the class rep to approve.",
+    "pendingAlready": "Your request is still pending.",
     "error": "Could not join",
-    "errorHint": "Run migration 008 if you have not yet."
+    "errorHint": "Try again in a moment."
   }
 }

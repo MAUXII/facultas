@@ -127,9 +127,9 @@ export function GradeAddDialog({
   };
 
   const field =
-    "flex items-center gap-2 rounded-[8px] bg-white/[0.06] px-3 py-2";
+    "flex items-center gap-2 rounded-[8px] bg-white/[0.06] px-3";
   const fieldInput =
-    "w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30";
+    "w-full bg-transparent py-2.5 text-sm text-white outline-none placeholder:text-white/30";
 
   return (
     <GooeyCompose
@@ -186,7 +186,7 @@ export function GradeAddDialog({
                   set("dia", day);
                 }}
                 className={cn(
-                  "rounded-[6px] px-2 py-1 text-[13px] transition-[color]",
+                  "rounded-[6px] px-2 py-2 text-[13px] transition-[color] sm:py-1",
                   draft.dia === day
                     ? "bg-white/[0.12] text-white"
                     : "text-white/50 hover:text-white",

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useLocale } from "next-intl";
 import { Bell, BellOff, CalendarDays, CheckCheck, Megaphone } from "lucide-react";
 import { GooeyPopover } from "@/components/ui/gooey-popover";
 import {
@@ -12,22 +13,32 @@ import {
 import { unreadCount, type AppNotification } from "@/lib/notifications";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import { cn } from "@/lib/utils";
+import { routes } from "@/lib/routes";
 
 const MENU_WIDTH = 340;
 
-function relativeTime(iso: string) {
-  const diff = Date.now() - new Date(iso).getTime();
-  const min = Math.floor(diff / 60_000);
-  if (min < 1) return "agora";
-  if (min < 60) return `${min} min`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `${h} h`;
-  const d = Math.floor(h / 24);
-  return `${d} d`;
+function relativeTime(iso: string, locale: string) {
+  const diffMs = Date.now() - new Date(iso).getTime();
+  const sec = Math.round(diffMs / 1000);
+  const rtf = new Intl.RelativeTimeFormat(locale, { numeric: "auto" });
+  if (Math.abs(sec) < 60) return rtf.format(-Math.max(sec, 0), "second");
+  const min = Math.round(sec / 60);
+  if (Math.abs(min) < 60) return rtf.format(-min, "minute");
+  const h = Math.round(min / 60);
+  if (Math.abs(h) < 24) return rtf.format(-h, "hour");
+  const d = Math.round(h / 24);
+  return rtf.format(-d, "day");
+}
+
+function notificationHref(item: AppNotification) {
+  if (item.href) return item.href;
+  if (item.communityId) return routes.community(item.communityId);
+  return routes.communities;
 }
 
 export function NotificationsBell({ className }: { className?: string }) {
   const router = useRouter();
+  const locale = useLocale();
   const triggerRef = useRef<HTMLButtonElement>(null);
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<AppNotification[]>([]);
@@ -88,7 +99,7 @@ export function NotificationsBell({ className }: { className?: string }) {
         console.error(err);
       }
     }
-    router.push(item.href);
+    router.push(notificationHref(item));
   };
 
   const markAll = async () => {
@@ -147,15 +158,18 @@ export function NotificationsBell({ className }: { className?: string }) {
               className="inline-flex items-center gap-1 rounded-[4px] px-1.5 py-0.5 text-[12px] text-white/50 transition hover:bg-[#95959522] hover:text-white"
             >
               <CheckCheck className="h-3.5 w-3.5" strokeWidth={1.75} />
-              Marcar lidas
+              Marcar tudo
             </button>
           ) : null}
         </div>
 
         {loading && items.length === 0 ? (
-          <div className="flex flex-col gap-1 px-2 py-2" aria-label="Carregando">
-            {[0, 1].map((i) => (
-              <div key={i} className="h-10 animate-pulse rounded-[4px] bg-white/[0.05]" />
+          <div className="flex flex-col gap-1.5 px-2 py-2" aria-label="Carregando">
+            {[0, 1, 2].map((i) => (
+              <div
+                key={i}
+                className="h-11 animate-pulse rounded-[4px] bg-white/[0.05]"
+              />
             ))}
           </div>
         ) : null}
@@ -205,7 +219,8 @@ export function NotificationsBell({ className }: { className?: string }) {
                   </span>
                 ) : null}
                 <span className="block text-[12px] text-white/35">
-                  {item.kind === "sessao" ? "Sessão" : "Aviso"} · {relativeTime(item.createdAt)}
+                  {item.kind === "sessao" ? "Sessão" : "Aviso"} ·{" "}
+                  {relativeTime(item.createdAt, locale)}
                 </span>
               </span>
               {unread ? (

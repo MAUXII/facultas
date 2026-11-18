@@ -13,7 +13,7 @@ import { cn } from "@/lib/utils";
 
 export default function CommunitiesPage() {
   const { user, loading } = useRequireAuth();
-  const { communities, fetchCommunities } = useCommunities();
+  const { communities, loaded, fetchCommunities } = useCommunities();
   const t = useTranslations("nav");
   const [showArchived, setShowArchived] = useState(false);
 
@@ -47,7 +47,21 @@ export default function CommunitiesPage() {
           </h1>
         </div>
 
-        {sorted.length > 0 || archived.length > 0 ? (
+        {!loaded && communities.length === 0 ? (
+          <div
+            className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2"
+            aria-busy="true"
+            aria-label="Carregando comunidades"
+          >
+            {[0, 1].map((i) => (
+              <div key={i} className="flex flex-col gap-3">
+                <div className="aspect-[16/10] w-full animate-pulse rounded-[12px] bg-white/[0.06]" />
+                <div className="h-4 w-2/3 animate-pulse rounded bg-white/[0.06]" />
+                <div className="h-3 w-1/3 animate-pulse rounded bg-white/[0.04]" />
+              </div>
+            ))}
+          </div>
+        ) : sorted.length > 0 || archived.length > 0 ? (
           <>
             {sorted.length > 0 ? (
               <div className="grid grid-cols-1 gap-x-8 gap-y-5 sm:grid-cols-2">

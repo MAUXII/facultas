@@ -108,19 +108,20 @@ export function AvisoDialog({
           <DateTimeField
             value={agendaAt}
             onChange={(next) => {
-              setAgendaAt(next);
+              if (next && !agendaAt) setPushCalendar(true);
               if (!next) setPushCalendar(false);
+              setAgendaAt(next);
             }}
           />
           {agendaAt ? (
-            <label className="inline-flex cursor-pointer items-center gap-2 rounded-[8px] px-2 py-1.5 text-[13px] text-white/60 transition hover:text-white">
+            <label className="inline-flex min-h-[40px] cursor-pointer items-center gap-2 rounded-[8px] px-2 text-[13px] text-white/60 transition hover:text-white">
               <input
                 type="checkbox"
                 checked={pushCalendar}
                 onChange={(e) => setPushCalendar(e.target.checked)}
-                className="size-3.5 accent-white"
+                className="size-4 accent-white"
               />
-              Mandar para o calendário
+              Aparecer na agenda da turma
             </label>
           ) : null}
         </div>

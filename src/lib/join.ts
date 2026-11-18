@@ -8,6 +8,8 @@ export type JoinResult = {
   communityId: string;
   publicId: string;
   status: "active" | "pending";
+  /** Já era membro (ou pedido pendente) antes deste submit. */
+  already?: boolean;
 };
 
 export class JoinError extends Error {
@@ -58,6 +60,7 @@ export function createJoin(port: JoinPort) {
           communityId: community.id,
           publicId: community.publicId,
           status: existing,
+          already: true,
         };
       }
       const status = community.requiresApproval ? "pending" : "active";
@@ -82,6 +85,7 @@ export function createJoin(port: JoinPort) {
           communityId: community.id,
           publicId: community.publicId,
           status: existing,
+          already: true,
         };
       }
       await port.insertMember(community.id, actorId, guestStatus);

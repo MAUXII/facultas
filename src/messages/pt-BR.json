@@ -145,12 +145,14 @@
     "placeholder": "Código da comunidade",
     "submit": "Entrar",
     "joining": "Entrando…",
-    "invalid": "Cole o código que o representante passou.",
-    "notFound": "Esse código não existe.",
+    "invalid": "Código incompleto. Use os 6 caracteres.",
+    "notFound": "Código inválido. Confira com quem te convidou.",
     "active": "Você entrou",
+    "alreadyMember": "Você já está nessa sala",
     "pending": "Pedido enviado",
     "pendingHint": "Aguarde o representante aprovar.",
+    "pendingAlready": "Seu pedido ainda está em análise.",
     "error": "Não deu para entrar",
-    "errorHint": "Rode a migration 008 se ainda não rodou."
+    "errorHint": "Tente de novo em instantes."
   }
 }

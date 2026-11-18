@@ -6,7 +6,10 @@ import {
   motion,
   useReducedMotion,
 } from "motion/react";
-import { Check, Copy, Loader2 } from "lucide-react";
+import { Check, Loader2 } from "lucide-react";
+import { CalendarConnectGuide } from "@/components/calendar/calendar-connect-guide";
+import { useUsuario } from "@/hooks/useUsuario";
+import { APP_NAME } from "@/lib/brand";
 import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
 import { LiveMedia } from "@/components/live-media/live-media";
 import { coverIndex } from "@/lib/cover-tint";
@@ -17,7 +20,7 @@ import {
 import {
   ensureCalendarFeedToken,
 } from "@/lib/calendar-events";
-import { feedUrlFromToken, toWebcal } from "@/lib/ics";
+import { feedUrlFromToken } from "@/lib/ics";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import { toast } from "@/components/ui/use-toast";
 import { cn } from "@/lib/utils";
@@ -34,22 +37,22 @@ const STEPS = [
   {
     id: "welcome",
     title: (name: string) => `Bem-vindo a ${name}`,
-    body: "Esta é a sala oficial do grupo. Avisos, materiais e sessões ficam aqui — não no meio do chat.",
+    body: "Avisos, materiais e a grade ficam aqui — não no meio do chat.",
   },
   {
     id: "agenda",
     title: () => "Sua agenda acompanha a sala",
-    body: "Quando alguém publica aviso com data ou abre sessão, o bloco aparece no seu calendário.",
+    body: "Aulas da grade e avisos com data aparecem no seu calendário.",
   },
   {
     id: "phone",
     title: () => "No celular, sem abrir o Facultas",
-    body: "Assine o feed pessoal uma vez. O app de calendário atualiza sozinho. Menos notificação perdida.",
+    body: "Você liga a agenda uma vez e ela se atualiza sozinha. Prova e entrega aparecem junto com o resto do seu dia.",
   },
   {
     id: "connect",
     title: () => "Conectar agora",
-    body: "Google, Apple ou copiar o link do feed. É o último passo.",
+    body: "Leva um minuto. O passo a passo mostra onde tocar no Google Agenda ou no iPhone.",
   },
 ] as const;
 
@@ -64,12 +67,14 @@ export function InviteOnboarding({
   const [step, setStep] = useState(0);
   const [token, setToken] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [subscribed, setSubscribed] = useState(false);
+  const { usuario } = useUsuario();
 
   useEffect(() => {
     if (!open) {
       setStep(0);
-      setCopied(false);
+      setGuideOpen(false);
       return;
     }
     clearInviteOnboardArm(communityId);
@@ -120,39 +125,6 @@ export function InviteOnboarding({
       return;
     }
     setStep((s) => s + 1);
-  };
-
-  const copyFeed = async () => {
-    if (!feedUrl) return;
-    try {
-      await navigator.clipboard.writeText(feedUrl);
-      setCopied(true);
-      window.localStorage.setItem("ff-calendar-subscribed", "1");
-      toast({ title: "Link copiado", description: "Cole no seu calendário." });
-      window.setTimeout(() => setCopied(false), 1800);
-    } catch {
-      toast({
-        variant: "destructive",
-        title: "Não copiou",
-        description: "Selecione o link e copie manualmente.",
-      });
-    }
-  };
-
-  const openGoogle = () => {
-    if (!feedUrl) return;
-    window.localStorage.setItem("ff-calendar-subscribed", "1");
-    window.open(
-      `https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(feedUrl)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
-  };
-
-  const openApple = () => {
-    if (!feedUrl) return;
-    window.localStorage.setItem("ff-calendar-subscribed", "1");
-    window.location.href = toWebcal(feedUrl);
   };
 
   if (!open) return null;
@@ -217,40 +189,21 @@ export function InviteOnboarding({
                     {busy && !token ? (
                       <div className="flex items-center gap-2 text-sm text-white/40">
                         <Loader2 className="h-4 w-4 animate-spin" />
-                        Preparando feed…
+                        Preparando o link…
                       </div>
                     ) : (
-                      <>
-                        <button
-                          type="button"
-                          disabled={!feedUrl}
-                          onClick={openGoogle}
-                          className="rounded-xl bg-white px-4 py-3 text-sm font-semibold text-black disabled:opacity-50"
-                        >
-                          Google Calendar
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!feedUrl}
-                          onClick={openApple}
-                          className="rounded-xl bg-white/[0.08] px-4 py-3 text-sm text-white/85 disabled:opacity-50"
-                        >
-                          Apple Calendar
-                        </button>
-                        <button
-                          type="button"
-                          disabled={!feedUrl}
-                          onClick={() => void copyFeed()}
-                          className="inline-flex items-center justify-center gap-2 rounded-xl bg-white/[0.05] px-4 py-3 text-sm text-white/70 disabled:opacity-50"
-                        >
-                          {copied ? (
-                            <Check className="h-4 w-4" />
-                          ) : (
-                            <Copy className="h-4 w-4" />
-                          )}
-                          {copied ? "Copiado" : "Copiar feed pessoal"}
-                        </button>
-                      </>
+                      <button
+                        type="button"
+                        disabled={!feedUrl}
+                        onClick={() => {
+                          playRuixenClick("soft");
+                          setGuideOpen(true);
+                        }}
+                        className="inline-flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-black disabled:opacity-50"
+                      >
+                        {subscribed ? <Check className="h-4 w-4" /> : null}
+                        {subscribed ? "Agenda conectada" : "Conectar minha agenda"}
+                      </button>
                     )}
                   </div>
                 ) : null}
@@ -261,7 +214,7 @@ export function InviteOnboarding({
               <button
                 type="button"
                 onClick={() => finish(false)}
-                className="text-sm text-white/35 transition hover:text-white/70"
+                className="-ml-2 min-h-[44px] rounded-lg px-2 text-sm text-white/45 transition hover:text-white/70"
               >
                 Depois
               </button>
@@ -278,12 +231,8 @@ export function InviteOnboarding({
               </div>
               <button
                 type="button"
-                onClick={
-                  isConnect
-                    ? () => finish(Boolean(token))
-                    : next
-                }
-                className="rounded-xl bg-white px-4 py-2 text-sm font-semibold text-black"
+                onClick={isConnect ? () => finish(subscribed) : next}
+                className="min-h-[44px] rounded-xl bg-white px-4 text-sm font-semibold text-black"
               >
                 {isConnect ? "Pronto" : "Continuar"}
               </button>
@@ -291,6 +240,16 @@ export function InviteOnboarding({
           </div>
         </LiquidGlass>
       </motion.div>
+      <CalendarConnectGuide
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        feedUrl={feedUrl || null}
+        calendarName={
+          usuario?.name?.trim() ? `${APP_NAME} · ${usuario.name.trim()}` : APP_NAME
+        }
+        zIndex={300}
+        onSubscribed={() => setSubscribed(true)}
+      />
     </div>
   );
 }

@@ -51,12 +51,25 @@ const CLOSE_TRANSITION = {
   duration: CLOSE_TRAVEL_MS,
   ease: "cubic-bezier(0.4, 0, 0.2, 1)",
 };
+const INSTANT_TRANSITION = { duration: 0.01, ease: "linear" as const };
 const OPEN_FADE_MS = 140;
 /** Espera máxima com o líquido parado na gota antes de viajar. */
 const WARM_MS = 90;
 const SETTLE_MS = OPEN_MS + 40;
 const CLOSE_FADE_DELAY_MS = CLOSE_TRAVEL_MS - 60;
 const CLOSE_FADE_MS = 160;
+
+function usePrefersReducedMotion() {
+  const [reduce, setReduce] = useState(false);
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-reduced-motion: reduce)");
+    setReduce(mq.matches);
+    const onChange = () => setReduce(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+  return reduce;
+}
 const PAD = 8;
 /** Px a mais no raio do blur para caber dentro do canto arredondado pelo goo. */
 const FROST_RADIUS_EXTRA = 3;
@@ -93,10 +106,14 @@ function usePhase(open: boolean, first: "measure" | "in") {
 
   // Espera a pintura cara passar antes de mover: anda quando um quadro longo
   // (a trava) já aconteceu, ou depois de WARM_MS se não houver trava.
-  // O timeout só cobre aba sem rAF.
+  // O timeout só cobre aba sem rAF. Com reduced-motion, abre na hora.
   useEffect(() => {
     if (phase !== "in") return;
     const go = () => setPhase((p) => (p === "in" ? "open" : p));
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      go();
+      return;
+    }
     const t0 = performance.now();
     let last = t0;
     let frames = 0;
@@ -118,9 +135,12 @@ function usePhase(open: boolean, first: "measure" | "in") {
 
   useEffect(() => {
     if (phase !== "open") return;
+    const settle = window.matchMedia("(prefers-reduced-motion: reduce)").matches
+      ? 16
+      : SETTLE_MS;
     const t = window.setTimeout(
       () => setPhase((p) => (p === "open" ? "rest" : p)),
-      SETTLE_MS,
+      settle,
     );
     return () => window.clearTimeout(t);
   }, [phase]);
@@ -358,6 +378,7 @@ export function GooeyPopover({
   ariaLabel,
   role = "menu",
 }: GooeyPopoverProps) {
+  const reduceMotion = usePrefersReducedMotion();
   const [phase, setPhase] = usePhase(open, "measure");
   const [place, setPlace] = useState<Placement | null>(null);
   const measureRef = useRef<HTMLDivElement>(null);
@@ -365,6 +386,11 @@ export function GooeyPopover({
   const live = phase !== "closed";
   const close = useCallback(() => onClose(), [onClose]);
   const hasDrop = triggerContent != null;
+  const moveTransition = reduceMotion
+    ? INSTANT_TRANSITION
+    : phase === "out" || phase === "fade"
+      ? CLOSE_TRANSITION
+      : OPEN_TRANSITION;
 
   useEscape(open && live, close);
   useInitialFocus(phase === "open" || phase === "rest", panelRef, false);
@@ -488,14 +514,10 @@ export function GooeyPopover({
           {...liquidFade(phase)}
         >
           <GooeyItem
-            x={shown ? 0 : place.dx}
-            y={shown ? 0 : place.dy}
-            scale={shown ? 1 : place.s0}
-            transition={
-              phase === "out" || phase === "fade"
-                ? CLOSE_TRANSITION
-                : OPEN_TRANSITION
-            }
+            x={shown ? 0 : reduceMotion ? 0 : place.dx}
+            y={shown ? 0 : reduceMotion ? 0 : place.dy}
+            scale={shown || reduceMotion ? 1 : place.s0}
+            transition={moveTransition}
             className={cn("absolute", shown && "pointer-events-auto")}
             style={{
               left: place.left - off.x,
@@ -627,11 +649,17 @@ export function GooeyDialog({
   zIndex = 200,
   ariaLabel,
 }: GooeyDialogProps) {
+  const reduceMotion = usePrefersReducedMotion();
   const [phase] = usePhase(open, "in");
   const [anchor, setAnchor] = useState<Anchor | null>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const live = phase !== "closed";
   const close = useCallback(() => onClose(), [onClose]);
+  const moveTransition = reduceMotion
+    ? INSTANT_TRANSITION
+    : phase === "out" || phase === "fade"
+      ? CLOSE_TRANSITION
+      : OPEN_TRANSITION;
 
   useEscape(open && live, close);
   useInitialFocus(phase === "open" || phase === "rest", panelRef, true);
@@ -653,7 +681,6 @@ export function GooeyDialog({
   if (!live || typeof document === "undefined") return null;
 
   const shown = phase === "open" || phase === "rest";
-  const closing = phase === "out" || phase === "fade";
   const vw = window.innerWidth;
   const vh = window.innerHeight;
   const w = Math.min(width, vw - 32);
@@ -674,23 +701,24 @@ export function GooeyDialog({
         className="absolute inset-0 bg-black/40 backdrop-blur-sm"
         style={{
           opacity: shown ? 1 : 0,
-          transition: "opacity 200ms ease-out",
+          transition: reduceMotion ? "none" : "opacity 200ms ease-out",
         }}
         onPointerDown={(e) => {
           e.preventDefault();
           close();
         }}
       />
+      {/* No celular o teclado cobre a metade de baixo: o diálogo fica no topo. */}
       <GooeyShell
-        className="pointer-events-none flex items-center justify-center p-4"
+        className="pointer-events-none flex items-start justify-center p-4 sm:items-center"
         style={{ position: "absolute", inset: 0 }}
         {...liquidFade(phase)}
       >
         <GooeyItem
-          x={shown ? 0 : start.dx}
-          y={shown ? 0 : start.dy}
-          scale={shown ? 1 : start.s0}
-          transition={closing ? CLOSE_TRANSITION : OPEN_TRANSITION}
+          x={shown || reduceMotion ? 0 : start.dx}
+          y={shown || reduceMotion ? 0 : start.dy}
+          scale={shown || reduceMotion ? 1 : start.s0}
+          transition={moveTransition}
           className={cn(shown && "pointer-events-auto")}
           style={{ width: w }}
         >

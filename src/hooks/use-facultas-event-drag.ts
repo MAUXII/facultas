@@ -12,10 +12,16 @@ export type FacultasDragEvent = {
   locked?: boolean;
 };
 
+export type FacultasDragMode = "move" | "resize";
+
 type LivePos = {
   id: string;
+  mode: FacultasDragMode;
   top: number;
   height: number;
+  /** Minutos desde a meia-noite, já com snap. */
+  startMin: number;
+  endMin: number;
 };
 
 type Options = {
@@ -30,9 +36,13 @@ function snapMinutes(total: number) {
   return Math.round(total / SNAP_MIN) * SNAP_MIN;
 }
 
+function minutesOfDay(date: Date) {
+  return date.getHours() * 60 + date.getMinutes();
+}
+
 /**
- * Drag limpo estilo Ruixen (pointer + snap 15min), no grid flat do Facultas.
- * Só vertical dentro da coluna do dia.
+ * Drag limpo (pointer + snap 15min) no grid flat do Facultas.
+ * "move" desloca o evento na coluna; "resize" puxa só o fim pela borda de baixo.
  */
 export function useFacultasEventDrag({
   pxPerHour,
@@ -45,10 +55,11 @@ export function useFacultasEventDrag({
   const liveRef = useRef<LivePos | null>(null);
   const dragRef = useRef<{
     event: FacultasDragEvent;
+    mode: FacultasDragMode;
     startY: number;
     originTop: number;
     height: number;
-    durationMs: number;
+    durationMin: number;
     moved: boolean;
   } | null>(null);
 
@@ -61,7 +72,8 @@ export function useFacultasEventDrag({
     onClickRef.current = onClick;
   }, [onClick]);
 
-  const maxTop = Math.max(0, hoursCount * pxPerHour);
+  const gridMinutes = hoursCount * 60;
+  const dayStartMin = dayStartHour * 60;
 
   const setLiveBoth = (next: LivePos | null) => {
     liveRef.current = next;
@@ -73,6 +85,7 @@ export function useFacultasEventDrag({
       e: React.PointerEvent,
       event: FacultasDragEvent,
       layout: { top: number; height: number },
+      mode: FacultasDragMode = "move",
     ) => {
       if (event.locked) return;
       if (e.button !== 0) return;
@@ -81,12 +94,15 @@ export function useFacultasEventDrag({
       (e.currentTarget as HTMLElement).setPointerCapture(e.pointerId);
       dragRef.current = {
         event,
+        mode,
         startY: e.clientY,
         originTop: layout.top,
         height: layout.height,
-        durationMs: Math.max(
-          event.endTime.getTime() - event.startTime.getTime(),
-          15 * 60 * 1000,
+        durationMin: Math.max(
+          Math.round(
+            (event.endTime.getTime() - event.startTime.getTime()) / 60000,
+          ),
+          SNAP_MIN,
         ),
         moved: false,
       };
@@ -101,49 +117,70 @@ export function useFacultasEventDrag({
       const dy = e.clientY - drag.startY;
       if (!drag.moved && Math.abs(dy) < THRESHOLD_PX) return;
       drag.moved = true;
-      const rawTop = drag.originTop + dy;
-      const minutesFromStart = snapMinutes((rawTop / pxPerHour) * 60);
-      const clamped = Math.max(
-        0,
-        Math.min(minutesFromStart, hoursCount * 60 - SNAP_MIN),
-      );
-      const top = (clamped / 60) * pxPerHour;
-      const height = Math.min(drag.height, maxTop - top);
-      setLiveBoth({ id: drag.event.id, top, height: Math.max(height, 22) });
-    },
-    [hoursCount, maxTop, pxPerHour],
-  );
 
-  const finish = useCallback(
-    (e: React.PointerEvent) => {
-      const drag = dragRef.current;
-      if (!drag) return;
-      dragRef.current = null;
-      try {
-        (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
-      } catch {
-        /* already released */
-      }
-
-      if (!drag.moved) {
-        onClickRef.current?.(drag.event);
-        setLiveBoth(null);
+      if (drag.mode === "resize") {
+        const startFromGrid = minutesOfDay(drag.event.startTime) - dayStartMin;
+        const rawDuration = drag.durationMin + (dy / pxPerHour) * 60;
+        const duration = Math.max(
+          SNAP_MIN,
+          Math.min(snapMinutes(rawDuration), gridMinutes - startFromGrid),
+        );
+        setLiveBoth({
+          id: drag.event.id,
+          mode: "resize",
+          top: drag.originTop,
+          height: Math.max((duration / 60) * pxPerHour, 22),
+          startMin: dayStartMin + startFromGrid,
+          endMin: dayStartMin + startFromGrid + duration,
+        });
         return;
       }
 
-      const current = liveRef.current;
-      const liveTop =
-        current?.id === drag.event.id ? current.top : drag.originTop;
-      const minutesFromStart = snapMinutes((liveTop / pxPerHour) * 60);
-      const start = new Date(drag.event.startTime);
-      start.setHours(dayStartHour, 0, 0, 0);
-      start.setMinutes(minutesFromStart);
-      const end = new Date(start.getTime() + drag.durationMs);
-      setLiveBoth(null);
-      onMoveRef.current(drag.event, start, end);
+      const fromGrid = snapMinutes(((drag.originTop + dy) / pxPerHour) * 60);
+      const clamped = Math.max(0, Math.min(fromGrid, gridMinutes - SNAP_MIN));
+      const top = (clamped / 60) * pxPerHour;
+      const height = Math.min(drag.height, gridMinutes / 60 * pxPerHour - top);
+      setLiveBoth({
+        id: drag.event.id,
+        mode: "move",
+        top,
+        height: Math.max(height, 22),
+        startMin: dayStartMin + clamped,
+        endMin: dayStartMin + clamped + drag.durationMin,
+      });
     },
-    [dayStartHour, pxPerHour],
+    [dayStartMin, gridMinutes, pxPerHour],
   );
+
+  const finish = useCallback((e: React.PointerEvent) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    try {
+      (e.currentTarget as HTMLElement).releasePointerCapture(e.pointerId);
+    } catch {
+      /* already released */
+    }
+
+    const current = liveRef.current;
+    setLiveBoth(null);
+    if (!drag.moved || current?.id !== drag.event.id) {
+      if (!drag.moved) onClickRef.current?.(drag.event);
+      return;
+    }
+
+    const start = new Date(drag.event.startTime);
+    start.setHours(0, current.startMin, 0, 0);
+    const end = new Date(start);
+    end.setHours(0, current.endMin, 0, 0);
+    if (
+      start.getTime() === drag.event.startTime.getTime() &&
+      end.getTime() === drag.event.endTime.getTime()
+    ) {
+      return;
+    }
+    onMoveRef.current(drag.event, start, end);
+  }, []);
 
   return {
     live,

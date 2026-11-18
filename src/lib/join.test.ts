@@ -112,6 +112,7 @@ describe("Join by access code", () => {
     const port = memoryPort({ code: "K7M2NP", membership: "active" });
     const result = await createJoin(port).byCode(ACTOR, "K7M2NP");
     expect(result.status).toBe("active");
+    expect(result.already).toBe(true);
     expect(port.members).toHaveLength(1);
   });
 

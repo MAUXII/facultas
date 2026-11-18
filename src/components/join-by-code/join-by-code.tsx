@@ -1,14 +1,8 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { useTranslations } from "next-intl";
-import {
-  Dialog,
-  DialogOverlay,
-  DialogPortal,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { GooeyCompose } from "@/components/ui/gooey-compose";
 import { toast } from "@/components/ui/use-toast";
 import { playRuixenClick } from "@/lib/ruixen-click";
 import {
@@ -43,7 +37,7 @@ function CodeOtp({
   };
 
   return (
-    <div className="flex gap-2 sm:gap-2.5">
+    <div className="flex justify-center gap-2">
       {Array.from({ length: ACCESS_CODE_LENGTH }, (_, index) => (
         <input
           key={index}
@@ -56,7 +50,7 @@ function CodeOtp({
           autoComplete="one-time-code"
           aria-label={`Dígito ${index + 1} do código`}
           maxLength={1}
-          className="h-12 w-10 rounded-xl bg-white/10 text-center font-mono text-lg tracking-widest text-white outline-none ring-1 ring-white/10 transition focus:ring-white/35 sm:h-14 sm:w-12 sm:text-xl"
+          className="h-12 w-10 rounded-[8px] bg-white/[0.06] text-center font-mono text-lg tracking-widest text-white outline-none ring-1 ring-white/10 transition focus:ring-white/35"
           onChange={(event) => {
             const typed = normalizeCode(event.target.value);
             if (!typed) {
@@ -120,7 +114,11 @@ export function JoinByCodeDialog({
       const result = await createJoin(supabaseJoinPort()).byCode(userId, code);
       setCode("");
       onOpenChange(false);
-      if (result.status === "pending") {
+      if (result.already && result.status === "pending") {
+        toast({ title: t("pendingAlready") });
+      } else if (result.already) {
+        toast({ title: t("alreadyMember") });
+      } else if (result.status === "pending") {
         toast({ title: t("pending"), description: t("pendingHint") });
       } else {
         toast({ title: t("active") });
@@ -145,57 +143,23 @@ export function JoinByCodeDialog({
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogPortal>
-        <DialogOverlay className="bg-black/40 backdrop-blur-2xl" />
-        <DialogPrimitive.Content
-          aria-describedby={undefined}
-          className="fixed inset-0 z-[261] overflow-y-auto border-0 bg-transparent p-0 shadow-none outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0"
-          onPointerDown={(event) => {
-            if (event.target === event.currentTarget) onOpenChange(false);
-          }}
-        >
-          <div className="mx-auto flex min-h-full w-full max-w-[var(--ff-max-width)] flex-col px-5 pb-10 pt-16 sm:px-8">
-            <div className="mb-12 flex items-center justify-between gap-3">
-              <button
-                type="button"
-                onClick={() => onOpenChange(false)}
-                className="rounded-xl px-4 py-2 text-sm text-white/50 transition hover:text-white"
-              >
-                {t("cancel")}
-              </button>
-              <button
-                type="button"
-                disabled={saving || normalizeCode(code).length < ACCESS_CODE_LENGTH}
-                onClick={() => void submit()}
-                className="rounded-xl bg-white px-5 py-2 text-sm font-semibold text-black transition hover:bg-white/90 disabled:opacity-40"
-              >
-                {saving ? t("joining") : t("submit")}
-              </button>
-            </div>
-
-            <DialogTitle className="ff-display text-4xl font-medium tracking-tight text-white/50 md:text-5xl">
-              {t("title")}
-            </DialogTitle>
-            <p className="mt-3 max-w-md text-sm text-white/40">{t("hint")}</p>
-
-            <form
-              className="mt-12"
-              onSubmit={(event) => {
-                event.preventDefault();
-                void submit();
-              }}
-            >
-              <CodeOtp
-                key={open ? "open" : "closed"}
-                value={code}
-                onChange={setCode}
-                disabled={saving}
-              />
-            </form>
-          </div>
-        </DialogPrimitive.Content>
-      </DialogPortal>
-    </Dialog>
+    <GooeyCompose
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={t("title")}
+      submitLabel={saving ? t("joining") : t("submit")}
+      submitDisabled={saving || normalizeCode(code).length < ACCESS_CODE_LENGTH}
+      onSubmit={() => void submit()}
+      width={400}
+      bodyClassName="pb-2"
+    >
+      <p className="mb-5 text-[13px] text-white/45">{t("hint")}</p>
+      <CodeOtp
+        key={open ? "open" : "closed"}
+        value={code}
+        onChange={setCode}
+        disabled={saving}
+      />
+    </GooeyCompose>
   );
 }

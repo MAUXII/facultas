@@ -26,6 +26,7 @@ import { LiveMedia } from "@/components/live-media/live-media";
 import { AnimatedTooltip } from "@/components/ui/animated-tooltip";
 import {
   Archive,
+  CalendarDays,
   Pencil,
   ChevronRight,
   Eye,
@@ -38,10 +39,12 @@ import { accessFor, roleFrom } from "@/lib/access";
 import { labelOfRole, memberRoleOf } from "@/lib/member-roles";
 import { settingsFrom } from "@/lib/hub";
 import { accessByLink, roomFeedUrl } from "@/lib/link-access";
-import { toWebcal } from "@/lib/ics";
+import { APP_NAME } from "@/lib/brand";
+import { CalendarConnectGuide } from "@/components/calendar/calendar-connect-guide";
 import { InviteOnboarding } from "@/components/invite-onboarding/invite-onboarding";
 import { shouldOpenInviteOnboard } from "@/lib/invite";
 import { ensureCommunityAccessCode } from "@/lib/invite-supabase";
+import { shareLink } from "@/lib/share";
 import {
   atmosphereSeedFor,
   coverCreditFor,
@@ -49,39 +52,25 @@ import {
 } from "@/lib/cover-meta";
 import { CoverCredit } from "@/components/cover-picker/cover-picker-dialog";
 
-function ShareRoom({ publicId }: { publicId: string }) {
+function ShareRoom({ publicId, name }: { publicId: string; name: string }) {
   const [note, setNote] = useState("");
+  const [guideOpen, setGuideOpen] = useState(false);
+  const [feedUrl, setFeedUrl] = useState<string | null>(null);
+  const guideTriggerRef = useRef<HTMLButtonElement>(null);
 
-  const copy = async (kind: "sala" | "agenda") => {
-    const url =
-      kind === "sala"
-        ? `${window.location.origin}${routes.community(publicId)}`
-        : roomFeedUrl(window.location.origin, publicId);
-    if (!url) return;
+  useEffect(() => {
+    setFeedUrl(roomFeedUrl(window.location.origin, publicId));
+  }, [publicId]);
+
+  const shareRoom = async () => {
+    const url = `${window.location.origin}${routes.community(publicId)}`;
+    if (await shareLink(name, url)) return;
     try {
       await navigator.clipboard.writeText(url);
-      setNote(
-        kind === "sala" ? "Link da sala copiado" : "Link do calendário copiado",
-      );
+      setNote("Link da sala copiado");
     } catch {
       setNote("Não deu para copiar. Com a janela em foco, tenta de novo.");
     }
-  };
-
-  const openGoogle = () => {
-    const feed = roomFeedUrl(window.location.origin, publicId);
-    if (!feed) return;
-    window.open(
-      `https://calendar.google.com/calendar/u/0/r?cid=${encodeURIComponent(feed)}`,
-      "_blank",
-      "noopener,noreferrer",
-    );
-  };
-
-  const openApple = () => {
-    const feed = roomFeedUrl(window.location.origin, publicId);
-    if (!feed) return;
-    window.location.href = toWebcal(feed);
   };
 
   return (
@@ -90,38 +79,36 @@ function ShareRoom({ publicId }: { publicId: string }) {
         Quem tem o link vê a sala e recebe aviso com data no calendário. Sem
         conta não publica, não comenta e não mexe na grade.
       </p>
-      <div className="flex flex-wrap gap-2">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
         <button
+          ref={guideTriggerRef}
           type="button"
-          onClick={() => void copy("agenda")}
-          className="rounded-xl bg-white px-4 py-2.5 text-sm font-semibold text-black"
+          onClick={() => {
+            playRuixenClick("soft");
+            setGuideOpen(true);
+          }}
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-white px-4 text-sm font-semibold text-black"
         >
-          Copiar calendário
+          <CalendarDays className="h-4 w-4" strokeWidth={1.75} />
+          Adicionar à minha agenda
         </button>
         <button
           type="button"
-          onClick={openGoogle}
-          className="rounded-xl bg-white/[0.06] px-4 py-2.5 text-sm text-white/80"
-        >
-          Google Calendar
-        </button>
-        <button
-          type="button"
-          onClick={openApple}
-          className="rounded-xl bg-white/[0.06] px-4 py-2.5 text-sm text-white/80"
-        >
-          Apple Calendar
-        </button>
-        <button
-          type="button"
-          onClick={() => void copy("sala")}
-          className="inline-flex items-center gap-2 rounded-xl px-3 py-2.5 text-sm text-white/55"
+          onClick={() => void shareRoom()}
+          className="inline-flex min-h-[44px] items-center justify-center gap-2 rounded-xl bg-white/[0.06] px-4 text-sm text-white/80"
         >
           <Link2 className="h-4 w-4" strokeWidth={1.5} />
-          Copiar link da sala
+          Compartilhar sala
         </button>
       </div>
       {note ? <p className="text-sm text-white/70">{note}</p> : null}
+      <CalendarConnectGuide
+        open={guideOpen}
+        onClose={() => setGuideOpen(false)}
+        anchorRef={guideTriggerRef}
+        feedUrl={feedUrl}
+        calendarName={`${APP_NAME} · ${name}`}
+      />
     </div>
   );
 }
@@ -323,6 +310,7 @@ export default function ComunidadePage() {
         setComunidade({ ...comunidade, access_code: code });
       }
       const url = `${window.location.origin}${routes.invite(code)}`;
+      if (await shareLink(comunidade.name, url)) return;
       await navigator.clipboard.writeText(url);
       toast({
         title: "Convite copiado",
@@ -624,7 +612,7 @@ export default function ComunidadePage() {
                             setAsMember(false);
                             setAsLink(true);
                           }}
-                          className="rounded-lg p-2 text-white/30 transition hover:bg-white/5 hover:text-white"
+                          className="rounded-lg p-3 text-white/50 transition hover:bg-white/5 hover:text-white sm:p-2 sm:text-white/30"
                           aria-label="Ver pelo link"
                           title="Ver pelo link"
                         >
@@ -639,7 +627,7 @@ export default function ComunidadePage() {
                           setAsLink(false);
                           setAsMember(true);
                         }}
-                        className="rounded-lg p-2 text-white/30 transition hover:bg-white/5 hover:text-white"
+                        className="rounded-lg p-3 text-white/50 transition hover:bg-white/5 hover:text-white sm:p-2 sm:text-white/30"
                         aria-label="Ver como membro"
                         title="Ver como membro"
                       >
@@ -651,7 +639,7 @@ export default function ComunidadePage() {
                           playRuixenClick("soft");
                           setEditOpen(true);
                         }}
-                        className="rounded-lg p-2 text-white/30 transition hover:bg-white/5 hover:text-white"
+                        className="rounded-lg p-3 text-white/50 transition hover:bg-white/5 hover:text-white sm:p-2 sm:text-white/30"
                         aria-label="Editar"
                       >
                         <Pencil className="h-4 w-4" strokeWidth={1.5} />
@@ -674,7 +662,10 @@ export default function ComunidadePage() {
                 ) : null}
 
                 {linkOpen ? (
-                  <ShareRoom publicId={comunidade.public_id} />
+                  <ShareRoom
+                    publicId={comunidade.public_id}
+                    name={comunidade.name}
+                  />
                 ) : null}
 
                 {!isMember && !readingByLink ? (

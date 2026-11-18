@@ -291,7 +291,7 @@ export function CommunityHub({
                   playRuixenClick("soft");
                   setAvisoOpen(true);
                 }}
-                className="text-sm text-white/40 transition hover:text-white"
+                className="-my-1 rounded-[8px] bg-white/[0.06] px-3.5 py-2.5 text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
               >
                 Novo aviso
               </button>
@@ -308,6 +308,17 @@ export function CommunityHub({
                     ? "Avisos, combinados e recados da turma ficam aqui."
                     : "Avisos e recados ficam aqui."
                   : `Só ${leaderLabel(kind)} publica avisos aqui.`
+              }
+              action={
+                canPost
+                  ? {
+                      label: "Novo aviso",
+                      onClick: () => {
+                        playRuixenClick("soft");
+                        setAvisoOpen(true);
+                      },
+                    }
+                  : undefined
               }
             />
           ) : (
@@ -360,7 +371,7 @@ export function CommunityHub({
                   playRuixenClick("soft");
                   setMaterialOpen(true);
                 }}
-                className="text-sm text-white/40 transition hover:text-white"
+                className="-my-1 rounded-[8px] bg-white/[0.06] px-3.5 py-2.5 text-sm text-white/75 transition hover:bg-white/10 hover:text-white"
               >
                 Novo material
               </button>
@@ -375,6 +386,17 @@ export function CommunityHub({
                 canAddMaterial
                   ? "PDFs, Drive e links da disciplina."
                   : `Só ${leaderLabel(kind)} adiciona materiais aqui.`
+              }
+              action={
+                canAddMaterial
+                  ? {
+                      label: "Novo material",
+                      onClick: () => {
+                        playRuixenClick("soft");
+                        setMaterialOpen(true);
+                      },
+                    }
+                  : undefined
               }
             />
           ) : (
@@ -643,16 +665,28 @@ function Empty({
   icon: Icon,
   title,
   text,
+  action,
 }: {
   icon: LucideIcon;
   title: string;
   text: string;
+  action?: { label: string; onClick: () => void };
 }) {
   return (
     <div className="flex flex-col items-center px-6 py-16 text-center">
       <Icon className="h-8 w-8 text-white/20" strokeWidth={1.25} />
       <p className="mt-4 text-base font-medium text-white">{title}</p>
       <p className="mt-1 max-w-sm text-sm text-white/40">{text}</p>
+      {action ? (
+        <button
+          type="button"
+          data-snd="select"
+          onClick={action.onClick}
+          className="mt-5 rounded-[6px] bg-white px-4 py-2 text-[13px] font-semibold text-black transition hover:bg-white/90"
+        >
+          {action.label}
+        </button>
+      ) : null}
     </div>
   );
 }

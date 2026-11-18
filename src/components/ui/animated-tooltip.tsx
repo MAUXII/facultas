@@ -69,6 +69,15 @@ export const AnimatedTooltip = ({
               src={item.image}
               alt={item.name}
               className="h-9 w-9 rounded-full object-cover"
+              fallback={
+                <span
+                  role="img"
+                  aria-label={item.name}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-[#2a2a2c] text-sm font-semibold text-white/75"
+                >
+                  {(item.name.trim().charAt(0) || "?").toUpperCase()}
+                </span>
+              }
             />
           </div>
         );

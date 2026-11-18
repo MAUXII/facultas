@@ -349,10 +349,10 @@ export function TopNav() {
     <>
       <header
         className={cn(
-          "fixed inset-x-0 top-0 z-50 border-b transition-[border-color,background-color,backdrop-filter] duration-200",
+          "fixed inset-x-0 top-0 z-50 transition-[background-color,backdrop-filter] duration-200",
           scrolled
-            ? "border-[var(--ff-line-flat)] bg-[color-mix(in_srgb,var(--ff-bg)_72%,transparent)] backdrop-blur-md"
-            : "border-transparent bg-transparent",
+            ? "bg-[color-mix(in_srgb,var(--ff-bg)_72%,transparent)] backdrop-blur-md"
+            : "bg-transparent",
         )}
       >
         <div
