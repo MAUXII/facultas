@@ -1,4 +1,6 @@
-<h1 align="center">Facultas</h1>
+<p align="center">
+  <img src="public/brand-mark.png" alt="Facultas" width="88" />
+</p>
 
 <p align="center">
   <strong>Sua faculdade, num só lugar.</strong><br />
