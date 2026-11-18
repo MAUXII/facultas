@@ -21,11 +21,13 @@
 
 ---
 
-**Facultas** é um hub acadêmico open source para organizar turma, grupo, monitoria e evento num só app. A pessoa cria ou entra numa **comunidade**, o representante monta a **grade** da semana, o **Descobrir** mostra o que é público na instituição, e o **calendário** é a agenda pessoal (o que a pessoa cria, aviso com data e sessão em que marcou presença).
+**Facultas** reúne a rotina acadêmica em comunidades. Turmas, grupos de estudo,
+monitorias e eventos têm um espaço para avisos, materiais e membros. O representante
+organiza a grade da turma, e cada pessoa acompanha suas datas no calendário pessoal.
 
-O código e o schema estão aqui. Para hospedar sua instância, conecte um projeto próprio no [Supabase](https://supabase.com).
-
-Feito por alunos da FATEC; o schema serve **qualquer instituição** de ensino superior no Brasil.
+Feito por alunos da FATEC, para estudantes de qualquer instituição de ensino superior
+no Brasil. O projeto é open source e inclui o app e o schema do banco. Você pode
+hospedar sua instância com um projeto próprio no [Supabase](https://supabase.com).
 
 ## Subir na sua máquina
 
@@ -60,14 +62,15 @@ as migrations `017` a `024` disponíveis no repositório.
 
 ## Nesta v1
 
-| Tem | Ainda não |
+| Recurso | O que você pode fazer |
 | --- | --- |
-| Comunidade (turma, grupo, monitoria, evento) com capa, avisos, materiais, membros | Check-in por QR |
-| Grade na turma (aula à mão, seg–sáb) | Scraping do SIGA |
-| Entrar por código (privada fora do Descobrir) | |
-| Calendário pessoal, aviso com data e sessão de quem marcou presença | |
-| Quem tem o link vê a sala e assina o calendário, sem conta | |
-| Nav: Comunidades · Calendário · Descobrir | |
+| Comunidades | Reunir turma, grupo, monitoria ou evento com capa e membros |
+| Avisos e materiais | Centralizar recados e conteúdo no hub da comunidade |
+| Grade da turma | Cadastrar aulas de segunda a sábado com horário e sala |
+| Descobrir | Encontrar comunidades públicas da instituição |
+| Convites | Entrar por código ou acessar por link, conforme a configuração |
+| Calendário pessoal | Organizar compromissos, avisos com data e sessões com presença |
+| Assinatura de calendário | Acompanhar as datas em um calendário externo pelo feed ICS |
 
 Glossário: [CONTEXT.md](CONTEXT.md) · Mapa do código: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Setup do banco: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
 
@@ -151,9 +154,13 @@ Migrations na ordem: `001` → `024` em [`supabase/migrations/`](supabase/migrat
 | `/discover` | Descobrir |
 | `/calendar` | Calendário pessoal |
 | `/auth/login` · `/auth/signup` | Auth |
+| `/auth/avatar` | Escolher avatar |
 | `/onboarding` | Instituição / campus |
+| `/profile` | Perfil |
+| `/privacy` · `/terms` | Privacidade e termos |
 
-URLs antigas (`/criar`, `/descobrir`, `/calendario`, `/rooms`, `/auth/cadastro`) redirecionam.
+As URLs do app seguem o padrão em inglês. Os endereços antigos redirecionam
+para as rotas atuais, incluindo `/auth/cadastro` e `/auth/cadastrar` → `/auth/signup`.
 
 </details>
 
@@ -161,7 +168,8 @@ URLs antigas (`/criar`, `/descobrir`, `/calendario`, `/rooms`, `/auth/cadastro`)
 
 Leia [CONTRIBUTING.md](CONTRIBUTING.md) antes do PR.
 
-Resumo: interface em **pt-BR**, código/rotas/commits em **inglês**, PR pequeno, testes e typecheck verdes, sem scraping do SIGA e sem segredo no git.
+A interface usa **pt-BR**. Código, rotas e commits seguem o padrão em **inglês**.
+Envie PRs pequenos e confira testes, lint e typecheck antes de enviar.
 
 ## Licença
 

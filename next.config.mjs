@@ -49,6 +49,7 @@ const nextConfig = {
       { source: "/calendario", destination: "/calendar", permanent: true },
       { source: "/perfil", destination: "/profile", permanent: true },
       { source: "/auth/cadastro", destination: "/auth/signup", permanent: true },
+      { source: "/auth/cadastrar", destination: "/auth/signup", permanent: true },
       { source: "/convite/:code", destination: "/i/:code", permanent: true },
     ];
   },
