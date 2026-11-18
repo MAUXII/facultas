@@ -1,0 +1,33 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="440" viewBox="0 0 1440 440" role="img" aria-label="loomwork: an agent learns a site once as a pattern, replays it on later runs, and repairs it when a step fails">
+  <!-- loomwork banner (fictional example). Palette: paper #fbfaf8, ink #18181b, muted #71717a, line #d4d4d8, accent #d9480f. System fonts only. -->
+  <rect width="1440" height="440" rx="16" fill="#fbfaf8"/>
+  <g font-family="ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif" fill="#18181b">
+    <text x="72" y="118" font-size="20" fill="#71717a" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">browser agent · python</text>
+    <text x="72" y="196" font-size="72" font-weight="700" letter-spacing="-2">loomwork</text>
+    <text x="72" y="250" font-size="30" font-weight="500">Learn a site once. Replay it after.</text>
+    <text x="72" y="292" font-size="22" fill="#71717a">Each run that works becomes a pattern.</text>
+    <text x="72" y="322" font-size="22" fill="#71717a">The next run replays it without a model.</text>
+  </g>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="18">
+    <rect x="760" y="80" width="200" height="72" rx="12" fill="#ffffff" stroke="#d4d4d8" stroke-width="2"/>
+    <text x="860" y="112" text-anchor="middle" fill="#18181b" font-weight="700">1 learn</text>
+    <text x="860" y="136" text-anchor="middle" fill="#71717a" font-size="15">model drives browser</text>
+    <rect x="1120" y="184" width="220" height="72" rx="12" fill="#ffffff" stroke="#d9480f" stroke-width="2.5"/>
+    <text x="1230" y="216" text-anchor="middle" fill="#d9480f" font-weight="700">2 replay</text>
+    <text x="1230" y="240" text-anchor="middle" fill="#71717a" font-size="15">pattern, no model</text>
+    <rect x="760" y="288" width="200" height="72" rx="12" fill="#ffffff" stroke="#d4d4d8" stroke-width="2"/>
+    <text x="860" y="320" text-anchor="middle" fill="#18181b" font-weight="700">3 repair</text>
+    <text x="860" y="344" text-anchor="middle" fill="#71717a" font-size="15">relearn failed step</text>
+    <path d="M960 116 C 1060 116, 1150 130, 1200 184" fill="none" stroke="#18181b" stroke-width="2" marker-end="url(#arrow)"/>
+    <path d="M1200 256 C 1150 310, 1060 324, 960 324" fill="none" stroke="#18181b" stroke-width="2" stroke-dasharray="6 6" marker-end="url(#arrow)"/>
+    <path d="M820 288 C 790 240, 790 200, 820 152" fill="none" stroke="#18181b" stroke-width="2" marker-end="url(#arrow)"/>
+    <text x="1112" y="120" fill="#71717a" font-size="14">works → saved</text>
+    <text x="1080" y="338" fill="#71717a" font-size="14">step fails</text>
+    <text x="700" y="226" fill="#71717a" font-size="14">update</text>
+  </g>
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M0 0 L10 5 L0 10 z" fill="#18181b"/>
+    </marker>
+  </defs>
+</svg>

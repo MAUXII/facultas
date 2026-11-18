@@ -1,29 +1,60 @@
-# Facultas
-
-<p align="center">
-  <img src="docs/assets/f-flow-banner.jpg" alt="Facultas — feito por alunos da FATEC, para qualquer campus" width="920" />
-</p>
+<h1 align="center">Facultas</h1>
 
 <p align="center">
   <strong>Sua faculdade, num só lugar.</strong><br />
-  Comunidades · grade da turma · Descobrir · calendário pessoal
+  Comunidades, grade da turma e calendário pessoal para a vida no campus.
 </p>
 
 <p align="center">
-  <a href="#nesta-v1"><img src="https://img.shields.io/badge/v1-comunidades_+_grade-151618?style=flat-square" alt="v1" /></a>
-  <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-white?style=flat-square&labelColor=151618" alt="MIT" /></a>
-  <a href="#stack"><img src="https://img.shields.io/badge/Next.js-14-black?style=flat-square&labelColor=151618" alt="Next.js 14" /></a>
-  <a href="#stack"><img src="https://img.shields.io/badge/Supabase-Auth_+_Postgres_+_RLS-3FCF8E?style=flat-square&labelColor=151618" alt="Supabase" /></a>
-  <a href="CONTEXT.md"><img src="https://img.shields.io/badge/UI-pt--BR-888888?style=flat-square&labelColor=151618" alt="pt-BR" /></a>
+  <a href="LICENSE"><img src="https://img.shields.io/badge/licença-MIT-151618?style=flat-square" alt="Licença MIT" /></a>
+  <a href="package.json"><img src="https://img.shields.io/badge/Node.js-24.x-151618?style=flat-square" alt="Requer Node.js 24.x" /></a>
+</p>
+
+<p align="center">
+  <a href="#subir-na-sua-máquina">Rodar localmente</a> ·
+  <a href="#nesta-v1">O que tem no app</a> ·
+  <a href="docs/ARCHITECTURE.md">Arquitetura</a> ·
+  <a href="CONTRIBUTING.md">Contribuir</a>
 </p>
 
 ---
 
-**Facultas** é o hub open source da **faculdade**: turma, grupo, monitoria e evento num só app. A pessoa cria ou entra numa **comunidade**, o representante monta a **grade** da semana, o **Descobrir** mostra o que é público na instituição, e o **calendário** é a agenda pessoal (o que a pessoa cria, aviso com data e sessão em que marcou presença).
+**Facultas** é um hub acadêmico open source para organizar turma, grupo, monitoria e evento num só app. A pessoa cria ou entra numa **comunidade**, o representante monta a **grade** da semana, o **Descobrir** mostra o que é público na instituição, e o **calendário** é a agenda pessoal (o que a pessoa cria, aviso com data e sessão em que marcou presença).
 
-Open source aqui = **app + schema**. Cada clone sobe o **próprio** [Supabase](https://supabase.com). Este repositório **não** traz banco, URL nem chave de ninguém.
+O código e o schema estão aqui. Para hospedar sua instância, conecte um projeto próprio no [Supabase](https://supabase.com).
 
 Feito por alunos da FATEC; o schema serve **qualquer instituição** de ensino superior no Brasil.
+
+## Subir na sua máquina
+
+Você precisa de **Node.js 24.x**, npm e um projeto próprio no Supabase.
+
+```bash
+git clone https://github.com/MAUXII/facultas.git
+cd facultas
+cp .env.example .env.local
+npm install
+```
+
+No PowerShell, copie a configuração com `Copy-Item .env.example .env.local`.
+
+1. Crie um projeto **seu** no [Supabase](https://supabase.com).
+2. Cole URL e anon key no `.env.local` (veja `.env.example`).
+3. No SQL Editor **do seu** projeto, rode `001` … `024` nesta ordem — [passo a passo](docs/SUPABASE_SETUP.md).
+4. `npm run dev` → [http://localhost:3000](http://localhost:3000)
+
+```bash
+npm run dev
+npm run build
+npm run lint
+npx tsc --noEmit
+npm test
+```
+
+Mantenha `.env.local` fora do Git e use a anon key pública na configuração do app.
+
+O guia do banco cobre a configuração inicial até a migration `016`. Complete também
+as migrations `017` a `024` disponíveis no repositório.
 
 ## Nesta v1
 
@@ -38,7 +69,8 @@ Feito por alunos da FATEC; o schema serve **qualquer instituição** de ensino s
 
 Glossário: [CONTEXT.md](CONTEXT.md) · Mapa do código: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) · Setup do banco: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md)
 
-## Como encaixa
+<details>
+<summary>Ver o fluxo entre as áreas</summary>
 
 ```mermaid
 flowchart LR
@@ -62,7 +94,10 @@ flowchart LR
 - **Calendário** — agenda pessoal: o que a pessoa cria e o aviso com data que a comunidade mandou.
 - **Grade** — mora **dentro** da turma, não no calendário.
 
-## Schema (visão rápida)
+</details>
+
+<details>
+<summary>Ver o schema em resumo</summary>
 
 ```mermaid
 erDiagram
@@ -92,7 +127,9 @@ erDiagram
   }
 ```
 
-Migrations na ordem: `001` → `016` em [`supabase/migrations/`](supabase/migrations/). Detalhe: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
+Migrations na ordem: `001` → `024` em [`supabase/migrations/`](supabase/migrations/). Detalhe: [docs/SUPABASE_SETUP.md](docs/SUPABASE_SETUP.md).
+
+</details>
 
 ## Stack
 
@@ -101,7 +138,8 @@ Migrations na ordem: `001` → `016` em [`supabase/migrations/`](supabase/migrat
 - **Tailwind CSS** + glass (glasscn) onde o fundo importa
 - **Vitest** nos módulos de domínio (`grade`, `access`, `join`, …)
 
-## Rotas
+<details>
+<summary>Ver as rotas</summary>
 
 | Path | O que é |
 | --- | --- |
@@ -115,29 +153,7 @@ Migrations na ordem: `001` → `016` em [`supabase/migrations/`](supabase/migrat
 
 URLs antigas (`/criar`, `/descobrir`, `/calendario`, `/rooms`, `/auth/cadastro`) redirecionam.
 
-## Subir na sua máquina
-
-```bash
-git clone https://github.com/MAUXII/presence-track.git
-cd presence-track
-cp .env.example .env.local
-npm install
-```
-
-1. Crie um projeto **seu** no [Supabase](https://supabase.com).
-2. Cole URL e anon key no `.env.local` (veja `.env.example`).
-3. No SQL Editor **do seu** projeto, rode `001` … `016` nesta ordem — [passo a passo](docs/SUPABASE_SETUP.md).
-4. `npm run dev` → [http://localhost:3000](http://localhost:3000)
-
-```bash
-npm run dev
-npm run build
-npm run lint
-npx tsc --noEmit
-npm test
-```
-
-Não commite `.env.local`. As chaves são da **sua** instância.
+</details>
 
 ## Contribuir
 
