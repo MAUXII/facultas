@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/app-shell/app-shell";
 import { CalendarSubscribeButton } from "@/components/calendar/calendar-subscribe";
 import {
@@ -17,10 +18,12 @@ import {
 } from "@/lib/calendar-events";
 import { playSnd } from "@/lib/snd";
 import { FEATURES } from "@/lib/features";
+import { routes } from "@/lib/routes";
 
 export default function CalendarioPage() {
   const { user, loading } = useRequireAuth();
   const { toast } = useToast();
+  const router = useRouter();
   const [events, setEvents] = useState<Event[]>([]);
   const [ready, setReady] = useState(false);
   const [managerKey, setManagerKey] = useState(0);
@@ -115,16 +118,21 @@ export default function CalendarioPage() {
   if (loading || !user || !ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--ff-bg)]">
-        <div className="h-8 w-8 animate-pulse rounded-md bg-white/15" />
+        <div className="flex w-full max-w-3xl flex-col gap-4 px-5">
+          <div className="h-8 w-48 animate-pulse rounded-md bg-white/10" />
+          <div className="h-10 w-64 animate-pulse rounded-md bg-white/[0.06]" />
+          <div className="h-[420px] animate-pulse rounded-[8px] bg-white/[0.04]" />
+        </div>
       </div>
     );
   }
 
   return (
     <AppShell wide>
-      <div className="flex flex-col gap-8">
+      <div className="flex h-[calc(100dvh-68px-4rem)] flex-col md:h-[calc(100dvh-72px-4rem)]">
         <EventManager
           key={managerKey}
+          className="min-h-0 flex-1"
           events={events}
           defaultView="month"
           categories={[
@@ -148,6 +156,9 @@ export default function CalendarioPage() {
           onEventCreate={onEventCreate}
           onEventUpdate={onEventUpdate}
           onEventDelete={onEventDelete}
+          onOpenGrade={(communityId) => {
+            router.push(`${routes.community(communityId)}?tab=grade`);
+          }}
         />
       </div>
     </AppShell>

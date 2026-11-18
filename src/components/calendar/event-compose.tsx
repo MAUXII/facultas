@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState, type RefObject } from "react";
-import { ArrowRight, AlignLeft, Trash2 } from "lucide-react";
+import { ArrowRight, AlignLeft, Pipette, Trash2 } from "lucide-react";
+import { HexColorInput, HexColorPicker } from "react-colorful";
 import { DateTimeField, formatDateTime } from "@/components/ui/date-time-field";
 import { GHOST_BTN, GooeyCompose, GooeyConfirm } from "@/components/ui/gooey-compose";
+import { isHexColor } from "@/lib/calendar-colors";
 import { cn } from "@/lib/utils";
 
 /*
@@ -29,6 +31,8 @@ type Props = {
   anchorRef?: RefObject<HTMLElement | null>;
   /** Evento sendo editado; sem ele, cria um novo. */
   editing?: (EventDraft & { id: string }) | null;
+  /** Prefill ao criar (ex.: clique numa hora vazia). */
+  seed?: Partial<EventDraft> | null;
   categories: string[];
   colors: Color[];
   tags: string[];
@@ -37,6 +41,7 @@ type Props = {
 };
 
 const HOUR = 60 * 60 * 1000;
+const CUSTOM_FALLBACK = "#38bdf8";
 
 function sameDay(a: Date, b: Date) {
   return a.toDateString() === b.toDateString();
@@ -72,6 +77,7 @@ export function EventCompose({
   onClose,
   anchorRef,
   editing,
+  seed,
   categories,
   colors,
   tags,
@@ -81,15 +87,22 @@ export function EventCompose({
   const [draft, setDraft] = useState<EventDraft>(() => blankDraft(colors, categories));
   const [showDescription, setShowDescription] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [customHex, setCustomHex] = useState(CUSTOM_FALLBACK);
   const deleteRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
-    const next = editing ? { ...editing } : blankDraft(colors, categories);
+    const next = editing
+      ? { ...editing }
+      : { ...blankDraft(colors, categories), ...seed };
     setDraft(next);
     setShowDescription(Boolean(next.description));
+    const hex = isHexColor(next.color) ? next.color : CUSTOM_FALLBACK;
+    setCustomHex(hex);
+    setCustomOpen(isHexColor(next.color));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, editing]);
+  }, [open, editing, seed]);
 
   const set = <K extends keyof EventDraft>(key: K, value: EventDraft[K]) =>
     setDraft((d) => ({ ...d, [key]: value }));
@@ -117,7 +130,25 @@ export function EventCompose({
       tags: d.tags.includes(tag) ? d.tags.filter((t) => t !== tag) : [...d.tags, tag],
     }));
 
+  const pickPreset = (value: string) => {
+    setCustomOpen(false);
+    set("color", value);
+  };
+
+  const pickCustom = (hex: string) => {
+    setCustomHex(hex);
+    set("color", hex);
+  };
+
+  const openCustom = () => {
+    setCustomOpen(true);
+    const next = isHexColor(draft.color) ? draft.color : customHex;
+    setCustomHex(next);
+    set("color", next);
+  };
+
   const valid = draft.title.trim().length > 0 && draft.endTime > draft.startTime;
+  const usingCustom = isHexColor(draft.color);
 
   return (
     <>
@@ -126,7 +157,13 @@ export function EventCompose({
         onClose={onClose}
         anchorRef={anchorRef}
         title={editing ? "Editar evento" : "Novo evento"}
-        onSubmit={() => onSubmit({ ...draft, title: draft.title.trim() })}
+        onSubmit={() =>
+          onSubmit({
+            ...draft,
+            title: draft.title.trim(),
+            description: draft.description.trim(),
+          })
+        }
         submitLabel={editing ? "Salvar" : "Criar"}
         submitDisabled={!valid}
         width={560}
@@ -202,27 +239,63 @@ export function EventCompose({
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-x-5 gap-y-3">
-            <div role="radiogroup" aria-label="Cor" className="flex items-center gap-2">
+          <div className="flex flex-col gap-2.5">
+            <span className="text-[13px] text-white/45">Cor</span>
+            <div role="radiogroup" aria-label="Cor" className="flex flex-wrap items-center gap-2">
               {colors.map((color) => (
                 <button
                   key={color.value}
                   type="button"
                   role="radio"
-                  aria-checked={draft.color === color.value}
+                  aria-checked={!usingCustom && draft.color === color.value}
                   aria-label={color.name}
                   title={color.name}
-                  onClick={() => set("color", color.value)}
+                  onClick={() => pickPreset(color.value)}
                   className={cn(
                     "h-5 w-5 rounded-full transition",
                     color.bg,
-                    draft.color === color.value
+                    !usingCustom && draft.color === color.value
                       ? "ring-2 ring-white ring-offset-2 ring-offset-[rgb(35,35,35)]"
                       : "opacity-60 hover:opacity-100",
                   )}
                 />
               ))}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={usingCustom}
+                aria-label="Cor personalizada"
+                title="Personalizada"
+                onClick={openCustom}
+                className={cn(
+                  "inline-flex h-5 w-5 items-center justify-center rounded-full transition",
+                  usingCustom
+                    ? "ring-2 ring-white ring-offset-2 ring-offset-[rgb(35,35,35)]"
+                    : "bg-white/[0.08] text-white/55 hover:bg-white/[0.12] hover:text-white",
+                )}
+                style={usingCustom ? { backgroundColor: draft.color } : undefined}
+              >
+                {!usingCustom ? <Pipette className="h-3 w-3" strokeWidth={1.75} /> : null}
+              </button>
             </div>
+
+            {customOpen ? (
+              <div className="flex flex-col gap-2 rounded-[8px] bg-white/[0.04] p-2.5">
+                <div className="[&_.react-colorful]:h-32 [&_.react-colorful]:w-full [&_.react-colorful__hue]:rounded-b-[6px] [&_.react-colorful__saturation]:rounded-t-[6px]">
+                  <HexColorPicker color={customHex} onChange={pickCustom} />
+                </div>
+                <label className="flex items-center gap-3 rounded-[6px] bg-white/[0.06] px-3 py-2 text-[13px] text-white/50">
+                  HEX
+                  <HexColorInput
+                    prefixed
+                    color={customHex}
+                    onChange={pickCustom}
+                    aria-label="Código hexadecimal da cor"
+                    className="w-full bg-transparent text-sm uppercase text-white outline-none"
+                  />
+                </label>
+              </div>
+            ) : null}
           </div>
 
           <div className="flex flex-wrap gap-1.5">

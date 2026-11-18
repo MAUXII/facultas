@@ -68,6 +68,7 @@ export function expandAulas(aulas: AgendaAula[], from: Date, to: Date): Event[] 
         tags: aula.roomName ? [aula.roomName] : [],
         locked: true,
         lockKind: "aula",
+        communityId: aula.communityId,
       });
     }
   }

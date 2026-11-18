@@ -2,7 +2,6 @@
 
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   ChevronLeft,
   ChevronRight,
@@ -13,7 +12,13 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LiquidGlass } from "@/components/ui/glasscn/liquid-glass";
+import {
+  calendarColorsForManager,
+  eventChipStyle,
+  eventDotClass,
+  eventDotStyle,
+  toneIndexForDay,
+} from "@/lib/calendar-colors";
 import {
   GooeyMenuItem,
   GooeyMenuLabel,
@@ -22,6 +27,7 @@ import {
 } from "@/components/ui/gooey-popover";
 import { EventCompose, type EventDraft } from "@/components/calendar/event-compose";
 import { MagneticTabs } from "@/components/ruixen/magnetic-tabs";
+import { useFacultasEventDrag } from "@/hooks/use-facultas-event-drag";
 
 export interface Event {
   id: string;
@@ -36,6 +42,8 @@ export interface Event {
   /** Data mora fora desta agenda: aviso da comunidade ou sessão com presença. */
   locked?: boolean;
   lockKind?: "aviso" | "sessao" | "aula";
+  /** Sala de origem (aula/aviso) — ponte pro hub. */
+  communityId?: string;
 }
 
 export interface EventManagerProps {
@@ -58,6 +66,10 @@ export interface EventManagerProps {
   headerActions?: React.ReactNode;
   /** Tipos que só existem vindos de fora (aviso, sessão): filtram, mas não se criam. */
   lockedCategories?: string[];
+  /** CTA quando a agenda filtrada está vazia. */
+  onEmptyCreate?: () => void;
+  /** Abrir a grade da sala a partir de uma aula travada. */
+  onOpenGrade?: (communityId: string) => void;
 }
 
 type CalendarView = "month" | "week" | "day" | "list";
@@ -68,17 +80,7 @@ function isCalendarView(value: string): value is CalendarView {
   return CALENDAR_VIEWS.includes(value as CalendarView);
 }
 
-const defaultColors = [
-  { name: "Azul", value: "blue", bg: "bg-blue-500", text: "text-blue-700" },
-  { name: "Verde", value: "green", bg: "bg-green-500", text: "text-green-700" },
-  { name: "Roxo", value: "purple", bg: "bg-purple-500", text: "text-purple-700" },
-  { name: "Laranja", value: "orange", bg: "bg-orange-500", text: "text-orange-700" },
-  { name: "Rosa", value: "pink", bg: "bg-pink-500", text: "text-pink-700" },
-  { name: "Vermelho", value: "red", bg: "bg-red-500", text: "text-red-700" },
-];
-
-const calendarSurfaceClass =
-  "overflow-hidden rounded-[18px] border border-white/[0.06] bg-white/[0.03] sm:rounded-[20px]";
+const defaultColors = calendarColorsForManager();
 
 const VIEW_TAB_ITEMS = [
   { value: "month", label: "Mês" },
@@ -86,6 +88,13 @@ const VIEW_TAB_ITEMS = [
   { value: "day", label: "Dia" },
   { value: "list", label: "Lista" },
 ] as const;
+
+const PX_PER_HOUR = 48;
+const DAY_START = 7;
+const DAY_END = 22;
+
+const flatFieldClass =
+  "flex h-11 items-center gap-2.5 rounded-[8px] bg-white/[0.04] px-3.5 text-sm text-white/70 transition hover:bg-white/[0.06]";
 
 export function EventManager({
   events: initialEvents = [],
@@ -106,6 +115,8 @@ export function EventManager({
   ],
   headerActions,
   lockedCategories = ["Aviso", "Sessão"],
+  onEmptyCreate,
+  onOpenGrade,
 }: EventManagerProps) {
   const [events, setEvents] = useState<Event[]>(initialEvents);
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -115,11 +126,26 @@ export function EventManager({
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [draggedEvent, setDraggedEvent] = useState<Event | null>(null);
   const newEventRef = useRef<HTMLButtonElement>(null);
+  const mobileDefaultApplied = useRef(false);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedColors, setSelectedColors] = useState<string[]>([]);
   const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [createSeed, setCreateSeed] = useState<Partial<EventDraft> | null>(null);
+
+  useEffect(() => {
+    setEvents(initialEvents);
+  }, [initialEvents]);
+
+  useEffect(() => {
+    if (mobileDefaultApplied.current) return;
+    mobileDefaultApplied.current = true;
+    if (typeof window === "undefined") return;
+    if (window.matchMedia("(max-width: 639px)").matches) {
+      setView("list");
+    }
+  }, []);
 
   const filteredEvents = useMemo(() => {
     return events.filter((event) => {
@@ -134,8 +160,11 @@ export function EventManager({
         if (!matchesSearch) return false;
       }
 
-      if (selectedColors.length > 0 && !selectedColors.includes(event.color)) {
-        return false;
+      if (selectedColors.length > 0) {
+        const key = /^#/.test(event.color) ? event.color.toLowerCase() : event.color;
+        if (!selectedColors.includes(key) && !selectedColors.includes(event.color)) {
+          return false;
+        }
       }
 
       if (selectedTags.length > 0) {
@@ -157,6 +186,22 @@ export function EventManager({
     });
   }, [events, searchQuery, selectedColors, selectedTags, selectedCategories]);
 
+  const filterColors = useMemo(() => {
+    const extras = new Map<string, { name: string; value: string; bg: string; text: string }>();
+    for (const event of events) {
+      if (!/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(event.color)) continue;
+      const value = event.color.toLowerCase();
+      if (extras.has(value)) continue;
+      extras.set(value, {
+        name: value.toUpperCase(),
+        value,
+        bg: "",
+        text: "text-white",
+      });
+    }
+    return [...colors, ...extras.values()];
+  }, [colors, events]);
+
   const hasActiveFilters =
     selectedColors.length > 0 ||
     selectedTags.length > 0 ||
@@ -174,7 +219,28 @@ export function EventManager({
   const closeEventDialog = () => {
     setIsDialogOpen(false);
     setSelectedEvent(null);
+    setCreateSeed(null);
   };
+
+  const openCreate = (seed?: Partial<EventDraft>) => {
+    setSelectedEvent(null);
+    setCreateSeed(seed ?? null);
+    setIsDialogOpen(true);
+    onEmptyCreate?.();
+  };
+
+  const openCreateAt = useCallback(
+    (date: Date, hour: number) => {
+      const start = new Date(date);
+      start.setHours(hour, 0, 0, 0);
+      const end = new Date(start.getTime() + 60 * 60 * 1000);
+      setSelectedEvent(null);
+      setCreateSeed({ startTime: start, endTime: end });
+      setIsDialogOpen(true);
+      onEmptyCreate?.();
+    },
+    [onEmptyCreate],
+  );
 
   const submitEvent = useCallback(
     async (draft: EventDraft) => {
@@ -206,16 +272,16 @@ export function EventManager({
     [onEventDelete, events],
   );
 
-  // O detalhe nasce do cartão clicado (o mesmo evento pode aparecer em vários dias).
   const peekAnchorRef = useRef<HTMLElement | null>(null);
   const lastPressed = useRef<HTMLElement | null>(null);
 
-  const openPeekEvent = (event: Event) => {
+  const openPeekEvent = (event: Event, anchor?: HTMLElement | null) => {
     const pressed = lastPressed.current;
     peekAnchorRef.current =
-      pressed?.dataset.eventId === event.id
+      anchor ??
+      (pressed?.dataset.eventId === event.id
         ? pressed
-        : document.querySelector<HTMLElement>(`[data-event-id="${event.id}"]`);
+        : document.querySelector<HTMLElement>(`[data-event-id="${event.id}"]`));
     setPeekEvent((current) => (current?.id === event.id ? null : event));
   };
 
@@ -248,14 +314,14 @@ export function EventManager({
   }, []);
 
   const handleDrop = useCallback(
-    (date: Date, hour?: number) => {
+    (date: Date, hour?: number, minute = 0) => {
       if (!draggedEvent || draggedEvent.locked) return;
 
       const duration =
         draggedEvent.endTime.getTime() - draggedEvent.startTime.getTime();
       const newStartTime = new Date(date);
       if (hour !== undefined) {
-        newStartTime.setHours(hour, 0, 0, 0);
+        newStartTime.setHours(hour, minute, 0, 0);
       }
       const newEndTime = new Date(newStartTime.getTime() + duration);
 
@@ -274,6 +340,17 @@ export function EventManager({
     [draggedEvent, onEventUpdate],
   );
 
+  const handleEventMove = useCallback(
+    (event: Event, start: Date, end: Date) => {
+      if (event.locked) return;
+      const updated: Event = { ...event, startTime: start, endTime: end };
+      setEvents((prev) => prev.map((e) => (e.id === event.id ? updated : e)));
+      setPeekEvent((current) => (current?.id === event.id ? updated : current));
+      void onEventUpdate?.(event.id, updated);
+    },
+    [onEventUpdate],
+  );
+
   const navigateDate = useCallback(
     (direction: "prev" | "next") => {
       setCurrentDate((prev) => {
@@ -289,14 +366,6 @@ export function EventManager({
       });
     },
     [view],
-  );
-
-  const getColorClasses = useCallback(
-    (colorValue: string) => {
-      const color = colors.find((c) => c.value === colorValue);
-      return color || colors[0];
-    },
-    [colors],
   );
 
   const headerTitle = useMemo(() => {
@@ -323,9 +392,11 @@ export function EventManager({
     return "Todos os eventos";
   }, [view, currentDate]);
 
+  const showEmpty = filteredEvents.length === 0;
+
   return (
     <div
-      className={cn("flex flex-col gap-8", className)}
+      className={cn("flex min-h-0 flex-col gap-4", className)}
       onPointerDownCapture={(e) => {
         lastPressed.current = (e.target as HTMLElement).closest<HTMLElement>("[data-event-id]");
       }}
@@ -333,9 +404,9 @@ export function EventManager({
         lastPressed.current = (e.target as HTMLElement).closest<HTMLElement>("[data-event-id]");
       }}
     >
-      <div className="flex flex-col gap-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <h1 className="min-w-0 text-[28px] font-semibold tracking-tight text-white">
+      <div className="flex shrink-0 flex-col gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <h1 className="min-w-0 text-[26px] font-semibold tracking-tight text-white sm:text-[28px]">
             {sentenceCase(headerTitle)}
           </h1>
           <div className="flex shrink-0 items-center gap-1">
@@ -370,10 +441,7 @@ export function EventManager({
             <Button
               ref={newEventRef}
               data-snd="select"
-              onClick={() => {
-                setSelectedEvent(null);
-                setIsDialogOpen(true);
-              }}
+              onClick={() => openCreate()}
               className="ml-1 h-10 bg-white px-4 text-black shadow-none hover:bg-white/90"
             >
               <Plus className="mr-2 h-4 w-4" />
@@ -392,25 +460,20 @@ export function EventManager({
         />
       </div>
 
-      <div className="flex gap-2">
-        <LiquidGlass className="min-w-0 flex-1 rounded-2xl">
-          <label className="flex h-12 w-full items-center gap-3 px-4">
-            <Search
-              className="h-4 w-4 shrink-0 text-white/35"
-              strokeWidth={1.75}
-            />
-            <input
-              type="search"
-              placeholder="Buscar eventos..."
-              data-ff-bare-input=""
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="h-full w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
-            />
-          </label>
-        </LiquidGlass>
+      <div className="flex shrink-0 gap-2">
+        <label className={cn(flatFieldClass, "min-w-0 flex-1")}>
+          <Search className="h-4 w-4 shrink-0 text-white/35" strokeWidth={1.75} />
+          <input
+            type="search"
+            placeholder="Buscar eventos..."
+            data-ff-bare-input=""
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="h-full w-full bg-transparent text-sm text-white outline-none placeholder:text-white/30"
+          />
+        </label>
         <FiltersMenu
-          colors={colors}
+          colors={filterColors}
           tags={availableTags}
           categories={categories}
           selectedColors={selectedColors}
@@ -425,65 +488,77 @@ export function EventManager({
         />
       </div>
 
-      {/* Visualizações do calendário */}
-      {view === "month" && (
-        <MonthView
-          onDayOpen={(date) => {
-            setCurrentDate(date);
-            setView("day");
-          }}
-          currentDate={currentDate}
-          events={filteredEvents}
-          onEventClick={openPeekEvent}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDrop={handleDrop}
-          getColorClasses={getColorClasses}
-          peekEventId={peekEvent?.id}
-        />
-      )}
+      {showEmpty ? (
+        <CalendarEmpty onCreate={() => openCreate()} />
+      ) : (
+        <div
+          className={cn(
+            "min-h-0",
+            view === "month"
+              ? "flex flex-1 flex-col"
+              : "flex-1 overflow-y-auto overscroll-contain pb-10",
+          )}
+        >
+          {view === "month" && (
+            <MonthView
+              onDayOpen={(date) => {
+                setCurrentDate(date);
+                setView("day");
+              }}
+              currentDate={currentDate}
+              events={filteredEvents}
+              onEventClick={openPeekEvent}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDrop={handleDrop}
+              peekEventId={peekEvent?.id}
+            />
+          )}
 
-      {view === "week" && (
-        <WeekView
-          currentDate={currentDate}
-          events={filteredEvents}
-          onEventClick={openPeekEvent}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDrop={handleDrop}
-          getColorClasses={getColorClasses}
-          peekEventId={peekEvent?.id}
-        />
-      )}
+          {view === "week" && (
+            <WeekView
+              currentDate={currentDate}
+              events={filteredEvents}
+              onEventClick={openPeekEvent}
+              onEventMove={handleEventMove}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDrop={handleDrop}
+              onSlotClick={openCreateAt}
+              peekEventId={peekEvent?.id}
+            />
+          )}
 
-      {view === "day" && (
-        <DayView
-          currentDate={currentDate}
-          events={filteredEvents}
-          onEventClick={openPeekEvent}
-          onDragStart={handleDragStart}
-          onDragEnd={handleDragEnd}
-          onDrop={handleDrop}
-          getColorClasses={getColorClasses}
-          peekEventId={peekEvent?.id}
-        />
-      )}
+          {view === "day" && (
+            <DayView
+              currentDate={currentDate}
+              events={filteredEvents}
+              onEventClick={openPeekEvent}
+              onEventMove={handleEventMove}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDrop={handleDrop}
+              onSlotClick={openCreateAt}
+              peekEventId={peekEvent?.id}
+            />
+          )}
 
-      {view === "list" && (
-        <ListView
-          events={filteredEvents}
-          onEventClick={openPeekEvent}
-          getColorClasses={getColorClasses}
-          peekEventId={peekEvent?.id}
-        />
+          {view === "list" && (
+            <ListView
+              events={filteredEvents}
+              onEventClick={openPeekEvent}
+              peekEventId={peekEvent?.id}
+            />
+          )}
+        </div>
       )}
 
       <EventDetail
         event={peekEvent}
         anchorRef={peekAnchorRef}
-        getColorClasses={getColorClasses}
         onClose={closePeekEvent}
         onEdit={editFromPeek}
+        onOpenGrade={onOpenGrade}
       />
 
       <EventCompose
@@ -504,12 +579,32 @@ export function EventManager({
               }
             : null
         }
+        seed={selectedEvent ? null : createSeed}
         categories={categories.filter((c) => !lockedCategories.includes(c))}
         colors={colors}
         tags={availableTags}
         onSubmit={(draft) => void submitEvent(draft)}
         onDelete={(id) => void handleDeleteEvent(id)}
       />
+    </div>
+  );
+}
+
+function CalendarEmpty({ onCreate }: { onCreate: () => void }) {
+  return (
+    <div className="flex flex-col items-center px-6 py-16 text-center">
+      <p className="text-base font-medium text-white">Nada nesta agenda</p>
+      <p className="mt-1 max-w-sm text-sm text-white/40">
+        Crie um evento ou espere a grade das suas salas aparecer aqui.
+      </p>
+      <button
+        type="button"
+        data-snd="select"
+        onClick={onCreate}
+        className="mt-5 rounded-[6px] bg-white px-4 py-2 text-[13px] font-semibold text-black transition hover:bg-white/90"
+      >
+        Novo evento
+      </button>
     </div>
   );
 }
@@ -534,17 +629,16 @@ function formatPeekWhen(start: Date, end: Date) {
 function EventDetail({
   event,
   anchorRef,
-  getColorClasses,
   onClose,
   onEdit,
+  onOpenGrade,
 }: {
   event: Event | null;
   anchorRef: React.RefObject<HTMLElement | null>;
-  getColorClasses: (color: string) => { bg: string; text: string; name: string };
   onClose: () => void;
   onEdit: () => void;
+  onOpenGrade?: (communityId: string) => void;
 }) {
-  // Mantém o último evento enquanto o painel fecha.
   const [shown, setShown] = useState<Event | null>(event);
   useEffect(() => {
     if (event) setShown(event);
@@ -581,7 +675,13 @@ function EventDetail({
       {e ? (
         <div className="p-2">
           <div className="flex items-center gap-2 text-[12px] text-white/50">
-            <span className={cn("h-2.5 w-2.5 shrink-0 rounded-full", getColorClasses(e.color).bg)} />
+            <span
+              className={cn(
+                "h-2.5 w-2.5 shrink-0 rounded-full",
+                eventDotClass(e.color),
+              )}
+              style={eventDotStyle(e.color)}
+            />
             {kindLabel}
           </div>
           <h2 className="mt-1.5 text-[15px] font-semibold leading-snug text-white">
@@ -601,7 +701,7 @@ function EventDetail({
               {e.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full bg-white/[0.08] px-2 py-0.5 text-[11px] text-white/60"
+                  className="rounded-[4px] bg-white/[0.06] px-2 py-0.5 text-[11px] text-white/55"
                 >
                   {tag}
                 </span>
@@ -617,6 +717,15 @@ function EventDetail({
               className="mt-3 w-full rounded-[6px] bg-white py-1.5 text-[13px] font-semibold text-black transition hover:bg-white/90"
             >
               Editar
+            </button>
+          ) : e.lockKind === "aula" && e.communityId && onOpenGrade ? (
+            <button
+              type="button"
+              data-snd="select"
+              onClick={() => onOpenGrade(e.communityId!)}
+              className="mt-3 w-full rounded-[6px] bg-white py-1.5 text-[13px] font-semibold text-black transition hover:bg-white/90"
+            >
+              Abrir grade
             </button>
           ) : null}
         </div>
@@ -665,18 +774,6 @@ function FiltersMenu({
       prev.includes(value) ? prev.filter((v) => v !== value) : [...prev, value],
     );
 
-  const label = (
-    <span className="inline-flex h-12 items-center gap-2 px-4 text-sm">
-      <Filter className="h-4 w-4" />
-      Filtros
-      {activeFilterCount > 0 && (
-        <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs font-medium text-white">
-          {activeFilterCount}
-        </span>
-      )}
-    </span>
-  );
-
   return (
     <>
       <button
@@ -686,9 +783,15 @@ function FiltersMenu({
         aria-expanded={open}
         aria-label={activeFilterCount > 0 ? `Filtros (${activeFilterCount})` : "Filtros"}
         onClick={() => setOpen((v) => !v)}
-        className="shrink-0 rounded-2xl border-0 bg-transparent p-0 text-white/70 outline-none transition hover:text-white"
+        className={cn(flatFieldClass, "shrink-0")}
       >
-        <LiquidGlass className="rounded-2xl">{label}</LiquidGlass>
+        <Filter className="h-4 w-4" />
+        Filtros
+        {activeFilterCount > 0 && (
+          <span className="flex h-5 min-w-5 items-center justify-center rounded-full bg-white/15 px-1.5 text-xs font-medium text-white">
+            {activeFilterCount}
+          </span>
+        )}
       </button>
 
       <GooeyPopover
@@ -715,7 +818,16 @@ function FiltersMenu({
           <GooeyMenuItem
             key={color.value}
             role="menuitemcheckbox"
-            icon={<span className={cn("block h-3 w-3 rounded-full", color.bg)} />}
+            icon={
+              <span
+                className={cn("block h-3 w-3 rounded-full", color.bg)}
+                style={
+                  !color.bg && /^#/.test(color.value)
+                    ? { backgroundColor: color.value }
+                    : undefined
+                }
+              />
+            }
             title={color.name}
             checked={selectedColors.includes(color.value)}
             onClick={() => toggleIn(color.value, setSelectedColors)}
@@ -750,92 +862,319 @@ function FiltersMenu({
   );
 }
 
-/** Horas da grade: 7h–22h, esticando se algum evento sair disso. */
-function visibleHours(events: Event[]) {
-  let first = 7;
-  let last = 22;
+/* ---------- Time grid helpers ---------- */
+
+function rangeHours(events: Event[]) {
+  let first = DAY_START;
+  let last = DAY_END;
   for (const e of events) {
     first = Math.min(first, e.startTime.getHours());
-    const endHour = e.endTime.getHours() + (e.endTime.getMinutes() > 0 ? 1 : 0);
+    const endHour =
+      e.endTime.getHours() + (e.endTime.getMinutes() > 0 ? 1 : 0);
     last = Math.max(last, Math.min(endHour, 24) - 1);
   }
-  return Array.from({ length: last - first + 1 }, (_, i) => first + i);
+  first = Math.min(first, DAY_START);
+  last = Math.max(last, DAY_END);
+  return { first, last, hours: Array.from({ length: last - first + 1 }, (_, i) => first + i) };
+}
+
+function minutesOf(date: Date) {
+  return date.getHours() * 60 + date.getMinutes();
 }
 
 function formatClock(date: Date) {
   return date.toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
 }
 
-function EventCard({
+type LaidOut = {
+  event: Event;
+  top: number;
+  height: number;
+  lane: number;
+  laneCount: number;
+  cluster: number;
+};
+
+type LaneOverflow = {
+  key: string;
+  top: number;
+  height: number;
+  lane: number;
+  laneCount: number;
+  events: Event[];
+};
+
+/** Empacota overlaps em lanes lado a lado; laneCount é o do cluster inteiro. */
+function layoutDayEvents(events: Event[], dayStartHour: number): LaidOut[] {
+  const startMin = dayStartHour * 60;
+  const sorted = [...events].sort(
+    (a, b) =>
+      a.startTime.getTime() - b.startTime.getTime() ||
+      b.endTime.getTime() - a.endTime.getTime(),
+  );
+  const active: { end: number; lane: number }[] = [];
+  const out: LaidOut[] = [];
+  const clusterLanes: number[] = [];
+  let cluster = -1;
+  let clusterEnd = -Infinity;
+
+  for (const event of sorted) {
+    const s = minutesOf(event.startTime);
+    const e = Math.max(minutesOf(event.endTime), s + 15);
+    if (s >= clusterEnd) {
+      cluster += 1;
+      clusterLanes[cluster] = 0;
+      active.length = 0;
+    }
+    clusterEnd = Math.max(clusterEnd, e);
+    for (let i = active.length - 1; i >= 0; i--) {
+      if (active[i].end <= s) active.splice(i, 1);
+    }
+    const used = new Set(active.map((a) => a.lane));
+    let lane = 0;
+    while (used.has(lane)) lane += 1;
+    active.push({ end: e, lane });
+    clusterLanes[cluster] = Math.max(clusterLanes[cluster], lane + 1);
+    out.push({
+      event,
+      top: ((s - startMin) / 60) * PX_PER_HOUR,
+      height: Math.max(((e - s) / 60) * PX_PER_HOUR, 22),
+      lane,
+      laneCount: 0,
+      cluster,
+    });
+  }
+
+  return out.map((item) => ({ ...item, laneCount: clusterLanes[item.cluster] }));
+}
+
+/**
+ * Corta clusters largos em `maxLanes` faixas: a última vira um chip "+N"
+ * cobrindo o intervalo dos eventos escondidos.
+ */
+function capLanes(laid: LaidOut[], maxLanes: number) {
+  const visible: LaidOut[] = [];
+  const overflow: LaneOverflow[] = [];
+  const hiddenByCluster = new Map<number, LaidOut[]>();
+
+  for (const item of laid) {
+    if (item.laneCount <= maxLanes) {
+      visible.push(item);
+      continue;
+    }
+    if (item.lane < maxLanes - 1) {
+      visible.push({ ...item, laneCount: maxLanes });
+      continue;
+    }
+    const list = hiddenByCluster.get(item.cluster) ?? [];
+    list.push(item);
+    hiddenByCluster.set(item.cluster, list);
+  }
+
+  hiddenByCluster.forEach((items, cluster) => {
+    const top = Math.min(...items.map((i) => i.top));
+    const bottom = Math.max(...items.map((i) => i.top + i.height));
+    overflow.push({
+      key: `overflow-${cluster}`,
+      top,
+      height: Math.max(bottom - top, 22),
+      lane: maxLanes - 1,
+      laneCount: maxLanes,
+      events: items
+        .map((i) => i.event)
+        .sort((a, b) => a.startTime.getTime() - b.startTime.getTime()),
+    });
+  });
+
+  return { visible, overflow };
+}
+
+function sameDay(a: Date, b: Date) {
+  return (
+    a.getDate() === b.getDate() &&
+    a.getMonth() === b.getMonth() &&
+    a.getFullYear() === b.getFullYear()
+  );
+}
+
+function NowLine({ dayStartHour, day }: { dayStartHour: number; day: Date }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+  if (!sameDay(now, day)) return null;
+  const mins = minutesOf(now);
+  const start = dayStartHour * 60;
+  if (mins < start || mins > (DAY_END + 1) * 60) return null;
+  const top = ((mins - start) / 60) * PX_PER_HOUR;
+  return (
+    <div
+      className="pointer-events-none absolute inset-x-0 z-20 overflow-hidden"
+      style={{ top }}
+      aria-hidden
+    >
+      <div className="relative h-px bg-rose-400/80">
+        <span className="absolute left-0 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-rose-400" />
+      </div>
+    </div>
+  );
+}
+
+function TimedEventBlock({
+  layout,
+  onEventClick,
+  peekEventId,
+  dense,
+  tone = 0,
+  liveTop,
+  liveHeight,
+  dragging,
+  onPointerDown,
+  onPointerMove,
+  onPointerUp,
+  onPointerCancel,
+}: {
+  layout: LaidOut;
+  onEventClick: (event: Event) => void;
+  peekEventId?: string | null;
+  dense?: boolean;
+  tone?: number;
+  liveTop?: number;
+  liveHeight?: number;
+  dragging?: boolean;
+  onPointerDown?: (e: React.PointerEvent, event: Event, layout: { top: number; height: number }) => void;
+  onPointerMove?: (e: React.PointerEvent) => void;
+  onPointerUp?: (e: React.PointerEvent) => void;
+  onPointerCancel?: (e: React.PointerEvent) => void;
+}) {
+  const { event, top, height, lane, laneCount } = layout;
+  const open = peekEventId === event.id;
+  const widthPct = 100 / laneCount;
+  const chip = eventChipStyle(event.color, tone);
+  const renderTop = liveTop ?? top;
+  const renderHeight = liveHeight ?? height;
+  return (
+    <div
+      data-event-id={event.id}
+      role="button"
+      tabIndex={0}
+      aria-label={`${event.title}, ${formatClock(event.startTime)}`}
+      title={`${event.title} · ${formatClock(event.startTime)}`}
+      aria-expanded={open}
+      onPointerDown={(e) => onPointerDown?.(e, event, { top, height })}
+      onPointerMove={onPointerMove}
+      onPointerUp={onPointerUp}
+      onPointerCancel={onPointerCancel}
+      onClick={(e) => {
+        // Clique sem drag: o hook decide via pointerup; evita double-fire.
+        if (onPointerDown) {
+          e.preventDefault();
+          return;
+        }
+        onEventClick(event);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEventClick(event);
+        }
+      }}
+      className={cn(
+        "absolute overflow-hidden rounded-[5px] outline-none touch-none focus-visible:ring-2 focus-visible:ring-white/50",
+        dragging ? "z-30 shadow-[0_8px_24px_rgba(0,0,0,0.35)] brightness-110" : "transition hover:brightness-110",
+        event.locked ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+        open && "ring-2 ring-white/60",
+      )}
+      style={{
+        top: renderTop,
+        height: renderHeight,
+        left: `calc(${lane * widthPct}% + 2px)`,
+        width: `calc(${widthPct}% - 4px)`,
+        backgroundColor: chip.fill,
+        color: chip.text,
+      }}
+    >
+      <span
+        className={cn(
+          "absolute inset-y-0 left-0",
+          event.locked ? "w-[2px] opacity-80" : "w-[3px]",
+        )}
+        style={{ backgroundColor: chip.bar }}
+      />
+      <div className={cn("pl-2.5 pr-1", dense ? "py-0.5" : "py-1")}>
+        <div className="truncate text-[11px] font-medium leading-tight sm:text-[12px]">
+          {event.title}
+        </div>
+        {!dense || height > 36 ? (
+          <div className="truncate text-[10px] opacity-65">
+            {formatClock(event.startTime)}
+            {event.lockKind === "aula"
+              ? " · grade"
+              : event.lockKind === "aviso"
+                ? " · aviso"
+                : event.lockKind === "sessao"
+                  ? " · sessão"
+                  : ""}
+          </div>
+        ) : null}
+      </div>
+    </div>
+  );
+}
+
+function MonthChip({
   event,
   onEventClick,
   onDragStart,
   onDragEnd,
-  getColorClasses,
-  variant = "default",
   peekEventId,
+  tone = 0,
 }: {
   event: Event;
   onEventClick: (event: Event) => void;
   onDragStart: (event: Event) => void;
   onDragEnd: () => void;
-  getColorClasses: (color: string) => { bg: string; text: string; name: string };
-  variant?: "default" | "compact" | "detailed";
   peekEventId?: string | null;
+  tone?: number;
 }) {
-  const colorClasses = getColorClasses(event.color);
   const open = peekEventId === event.id;
-  const common = {
-    "data-event-id": event.id,
-    role: "button",
-    tabIndex: 0,
-    "aria-label": `${event.title}, ${formatClock(event.startTime)}`,
-    "aria-expanded": open,
-    draggable: !event.locked,
-    onDragStart: () => onDragStart(event),
-    onDragEnd,
-    onClick: () => onEventClick(event),
-    onKeyDown: (e: React.KeyboardEvent) => {
-      if (e.key === "Enter" || e.key === " ") {
-        e.preventDefault();
-        onEventClick(event);
-      }
-    },
-  } as const;
-
-  if (variant === "detailed") {
-    return (
-      <div
-        {...common}
-        className={cn(
-          "cursor-pointer rounded-[12px] p-3 text-white outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white/60",
-          colorClasses.bg,
-          open && "ring-2 ring-white/70",
-        )}
-      >
-        <div className="font-semibold">{event.title}</div>
-        {event.description ? (
-          <div className="mt-1 line-clamp-2 text-sm opacity-90">{event.description}</div>
-        ) : null}
-        <div className="mt-2 flex items-center gap-2 text-xs opacity-80">
-          <Clock className="h-3 w-3" />
-          {formatClock(event.startTime)} – {formatClock(event.endTime)}
-        </div>
-      </div>
-    );
-  }
-
+  const chip = eventChipStyle(event.color, tone);
   return (
     <div
-      {...common}
+      data-event-id={event.id}
+      role="button"
+      tabIndex={0}
+      aria-label={`${event.title}, ${formatClock(event.startTime)}`}
+      aria-expanded={open}
+      draggable={!event.locked}
+      onDragStart={() => onDragStart(event)}
+      onDragEnd={onDragEnd}
+      onClick={(e) => {
+        e.stopPropagation();
+        onEventClick(event);
+      }}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onEventClick(event);
+        }
+      }}
       className={cn(
-        "cursor-pointer truncate rounded-[8px] font-medium text-white shadow-sm outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white/60",
-        variant === "compact" ? "px-1.5 py-0.5 text-xs" : "px-2 py-1 text-xs",
-        colorClasses.bg,
-        open && "ring-2 ring-white/70",
+        "flex h-[22px] shrink-0 items-center gap-1.5 truncate rounded-[5px] px-1.5 text-[11px] font-medium outline-none transition hover:brightness-110 focus-visible:ring-2 focus-visible:ring-white/50 sm:text-[12px]",
+        event.locked ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+        open && "ring-2 ring-white/60",
       )}
+      style={{ backgroundColor: chip.fill, color: chip.text }}
     >
-      {event.title}
+      <span
+        className="h-2.5 w-0.5 shrink-0 rounded-full"
+        style={{ backgroundColor: chip.bar }}
+      />
+      <span className="shrink-0 tabular-nums opacity-70">
+        {formatClock(event.startTime)}
+      </span>
+      <span className="min-w-0 truncate">{event.title}</span>
     </div>
   );
 }
@@ -847,7 +1186,6 @@ function MonthView({
   onDragStart,
   onDragEnd,
   onDrop,
-  getColorClasses,
   peekEventId,
   onDayOpen,
 }: {
@@ -857,23 +1195,22 @@ function MonthView({
   onDragStart: (event: Event) => void;
   onDragEnd: () => void;
   onDrop: (date: Date) => void;
-  getColorClasses: (color: string) => { bg: string; text: string; name: string };
   peekEventId?: string | null;
-  /** Celular: tocar no dia abre a visão do dia. */
   onDayOpen?: (date: Date) => void;
 }) {
-  const firstDayOfMonth = new Date(
-    currentDate.getFullYear(),
-    currentDate.getMonth(),
-    1,
-  );
+  const year = currentDate.getFullYear();
+  const month = currentDate.getMonth();
+  const firstDayOfMonth = new Date(year, month, 1);
+  const lastDayOfMonth = new Date(year, month + 1, 0);
   const startDate = new Date(firstDayOfMonth);
   startDate.setDate(startDate.getDate() - startDate.getDay());
+  // Só as semanas que tocam o mês — sem a 6ª linha vazia que forçava scroll.
+  const endDate = new Date(lastDayOfMonth);
+  endDate.setDate(endDate.getDate() + (6 - endDate.getDay()));
 
   const days: Date[] = [];
   const currentDay = new Date(startDate);
-
-  for (let i = 0; i < 42; i++) {
+  while (currentDay <= endDate) {
     days.push(new Date(currentDay));
     currentDay.setDate(currentDay.getDate() + 1);
   }
@@ -883,89 +1220,125 @@ function MonthView({
     return d.toLocaleDateString("pt-BR", { weekday: "short" });
   });
 
-  const getEventsForDay = (date: Date) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.startTime);
-      return (
-        eventDate.getDate() === date.getDate() &&
-        eventDate.getMonth() === date.getMonth() &&
-        eventDate.getFullYear() === date.getFullYear()
-      );
-    });
-  };
+  const getEventsForDay = (date: Date) =>
+    events
+      .filter((event) => sameDay(event.startTime, date))
+      .sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  const [chipLimit, setChipLimit] = useState(3);
+
+  // Google/Apple: linhas iguais; quantos chips cabem = altura da célula.
+  useEffect(() => {
+    const el = gridRef.current;
+    if (!el) return;
+    const measure = () => {
+      const cell = el.firstElementChild as HTMLElement | null;
+      if (!cell) return;
+      const h = cell.getBoundingClientRect().height;
+      const usable = h - 30 - 18; // data + "+N"
+      const fit = Math.max(2, Math.min(5, Math.floor(usable / 24)));
+      setChipLimit(fit);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [days.length]);
 
   return (
-    <div className={calendarSurfaceClass}>
-      <div className="grid grid-cols-7 border-b border-white/[0.06]">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
+      <div className="grid shrink-0 grid-cols-7 border-b border-white/[0.04]">
         {weekdayLabels.map((day) => (
           <div
             key={day}
-            className="border-r border-white/[0.06] px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-white/35 last:border-r-0 sm:py-3 sm:text-xs"
+            className="px-1 py-2 text-center text-[10px] font-medium uppercase tracking-[0.06em] text-white/30 sm:px-2 sm:text-[11px]"
           >
             <span className="hidden sm:inline">{day}</span>
             <span className="sm:hidden">{day.charAt(0).toUpperCase()}</span>
           </div>
         ))}
       </div>
-      <div className="grid grid-cols-7">
+      <div
+        ref={gridRef}
+        className="grid min-h-0 flex-1 grid-cols-7"
+        style={{ gridAutoRows: "1fr" }}
+      >
         {days.map((day, index) => {
           const dayEvents = getEventsForDay(day);
           const isCurrentMonth = day.getMonth() === currentDate.getMonth();
           const isToday = day.toDateString() === new Date().toDateString();
+          const extra = Math.max(0, dayEvents.length - chipLimit);
 
           return (
             <div
               key={index}
               className={cn(
-                "min-h-20 border-b border-r border-white/[0.06] bg-transparent p-1 transition-colors last:border-r-0 hover:bg-white/[0.04] sm:min-h-24 sm:p-2",
-                !isCurrentMonth && "text-white/25",
+                "flex min-h-0 flex-col overflow-hidden border-b border-white/[0.04] p-1.5 transition-colors hover:bg-white/[0.03] sm:p-2",
+                index % 7 !== 6 && "sm:border-r sm:border-white/[0.03]",
+                !isCurrentMonth && "opacity-40",
               )}
               onDragOver={(e) => e.preventDefault()}
               onDrop={() => onDrop(day)}
               onClick={(e) => {
-                // Só no celular, onde os cartões viram bolinhas.
-                if (window.matchMedia("(min-width: 640px)").matches) return;
+                if (window.matchMedia("(min-width: 640px)").matches) {
+                  if ((e.target as HTMLElement).closest("[data-event-id]")) return;
+                  if (dayEvents.length > chipLimit) onDayOpen?.(day);
+                  return;
+                }
                 if ((e.target as HTMLElement).closest("[data-event-id]")) return;
                 onDayOpen?.(day);
               }}
             >
               <div
                 className={cn(
-                  "mb-1 flex h-5 w-5 items-center justify-center rounded-full text-xs sm:h-6 sm:w-6 sm:text-sm",
+                  "mb-1 flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[12px] sm:text-[13px]",
                   isToday && "bg-white font-semibold text-black",
-                  !isToday && isCurrentMonth && "text-white",
-                  !isToday && !isCurrentMonth && "text-white/25",
+                  !isToday && "text-white/80",
                 )}
               >
                 {day.getDate()}
               </div>
               {dayEvents.length > 0 ? (
                 <div className="flex flex-wrap gap-0.5 px-0.5 sm:hidden" aria-hidden>
-                  {dayEvents.slice(0, 4).map((event) => (
-                    <span
-                      key={event.id}
-                      className={cn("h-1.5 w-1.5 rounded-full", getColorClasses(event.color).bg)}
-                    />
-                  ))}
+                  {dayEvents.slice(0, 5).map((event) => {
+                    const tone = toneIndexForDay(dayEvents, event.id);
+                    return (
+                      <span
+                        key={event.id}
+                        className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          tone === 0 ? eventDotClass(event.color) : "",
+                        )}
+                        style={eventDotStyle(event.color, tone)}
+                      />
+                    );
+                  })}
                 </div>
               ) : null}
-              <div className="hidden space-y-1 sm:block">
-                {dayEvents.slice(0, 3).map((event) => (
-                  <EventCard
+              <div className="hidden min-h-0 flex-1 flex-col gap-1 overflow-hidden sm:flex">
+                {dayEvents.slice(0, chipLimit).map((event) => (
+                  <MonthChip
                     key={event.id}
                     event={event}
                     onEventClick={onEventClick}
                     onDragStart={onDragStart}
                     onDragEnd={onDragEnd}
-                    getColorClasses={getColorClasses}
-                    variant="compact"
                     peekEventId={peekEventId}
+                    tone={toneIndexForDay(dayEvents, event.id)}
                   />
                 ))}
-                {dayEvents.length > 3 && (
-                  <div className="text-[10px] text-[var(--ff-muted)] sm:text-xs">
-                    +{dayEvents.length - 3} mais
-                  </div>
+                {extra > 0 && (
+                  <button
+                    type="button"
+                    className="mt-auto shrink-0 px-1 text-left text-[11px] text-white/40 transition hover:text-white/70"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onDayOpen?.(day);
+                    }}
+                  >
+                    +{extra} mais
+                  </button>
                 )}
               </div>
             </div>
@@ -976,123 +1349,269 @@ function MonthView({
   );
 }
 
+const GRID_BOTTOM_PAD = 16;
+
+function LaneOverflowChip({
+  overflow,
+  dayEvents,
+  onEventClick,
+}: {
+  overflow: LaneOverflow;
+  dayEvents: Event[];
+  onEventClick: (event: Event, anchor?: HTMLElement | null) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLButtonElement>(null);
+  const { top, height, lane, laneCount, events } = overflow;
+  const widthPct = 100 / laneCount;
+  return (
+    <>
+      <button
+        ref={ref}
+        type="button"
+        data-event-id={overflow.key}
+        aria-haspopup="menu"
+        aria-expanded={open}
+        aria-label={`Mais ${events.length} eventos`}
+        onClick={() => setOpen((v) => !v)}
+        className={cn(
+          "absolute flex items-start justify-center rounded-[5px] border border-white/[0.08] bg-white/[0.05] pt-1 text-[11px] font-semibold text-white/75 outline-none transition hover:bg-white/[0.09] hover:text-white focus-visible:ring-2 focus-visible:ring-white/50",
+          open && "bg-white/[0.1] text-white ring-1 ring-white/30",
+        )}
+        style={{
+          top,
+          height,
+          left: `calc(${lane * widthPct}% + 2px)`,
+          width: `calc(${widthPct}% - 4px)`,
+        }}
+      >
+        +{events.length}
+      </button>
+      <GooeyPopover
+        open={open}
+        onClose={() => setOpen(false)}
+        anchorRef={ref}
+        width={260}
+        role="menu"
+        ariaLabel="Eventos sobrepostos"
+      >
+        <GooeyMenuLabel>
+          {events.length} {events.length === 1 ? "evento" : "eventos"} no mesmo horário
+        </GooeyMenuLabel>
+        {events.map((ev) => (
+          <GooeyMenuItem
+            key={ev.id}
+            icon={
+              <span
+                className="h-2.5 w-2.5 rounded-full"
+                style={eventDotStyle(ev.color, toneIndexForDay(dayEvents, ev.id))}
+              />
+            }
+            title={ev.title}
+            description={`${formatClock(ev.startTime)} – ${formatClock(ev.endTime)}`}
+            onClick={() => {
+              setOpen(false);
+              onEventClick(ev, ref.current);
+            }}
+          />
+        ))}
+      </GooeyPopover>
+    </>
+  );
+}
+
+function TimeGridColumn({
+  day,
+  events,
+  hours,
+  dayStartHour,
+  onEventClick,
+  onEventMove,
+  onSlotClick,
+  peekEventId,
+  dense,
+}: {
+  day: Date;
+  events: Event[];
+  hours: number[];
+  dayStartHour: number;
+  onEventClick: (event: Event, anchor?: HTMLElement | null) => void;
+  onEventMove: (event: Event, start: Date, end: Date) => void;
+  onSlotClick?: (date: Date, hour: number) => void;
+  peekEventId?: string | null;
+  dense?: boolean;
+}) {
+  const dayEvents = events.filter((e) => sameDay(e.startTime, day));
+  const { visible: laid, overflow } = capLanes(
+    layoutDayEvents(dayEvents, dayStartHour),
+    dense ? 2 : 3,
+  );
+  const height = hours.length * PX_PER_HOUR + GRID_BOTTOM_PAD;
+
+  const drag = useFacultasEventDrag({
+    pxPerHour: PX_PER_HOUR,
+    dayStartHour,
+    hoursCount: hours.length,
+    onClick: (e) => {
+      const full = dayEvents.find((item) => item.id === e.id);
+      if (full) onEventClick(full);
+    },
+    onMove: (e, start, end) => {
+      const full = dayEvents.find((item) => item.id === e.id);
+      if (full) onEventMove(full, start, end);
+    },
+  });
+
+  return (
+    <div
+      className="relative overflow-hidden border-l border-white/[0.04]"
+      style={{ height }}
+      onClick={(e) => {
+        if (!onSlotClick) return;
+        // Cliques do popover "+N" (portal) borbulham pela árvore React até aqui.
+        if (!e.currentTarget.contains(e.target as Node)) return;
+        if ((e.target as HTMLElement).closest("[data-event-id]")) return;
+        if (drag.live) return;
+        const rect = e.currentTarget.getBoundingClientRect();
+        const y = e.clientY - rect.top;
+        const hour = dayStartHour + Math.floor(y / PX_PER_HOUR);
+        if (hour < dayStartHour || hour > (hours[hours.length - 1] ?? dayStartHour)) return;
+        onSlotClick(day, hour);
+      }}
+    >
+      {hours.map((hour, i) => (
+        <div
+          key={hour}
+          className="absolute inset-x-0 border-t border-white/[0.04]"
+          style={{ top: i * PX_PER_HOUR, height: PX_PER_HOUR }}
+        />
+      ))}
+      <NowLine dayStartHour={dayStartHour} day={day} />
+      {laid.map((item) => {
+        const isLive = drag.live?.id === item.event.id;
+        return (
+          <TimedEventBlock
+            key={item.event.id}
+            layout={item}
+            onEventClick={onEventClick}
+            peekEventId={peekEventId}
+            dense={dense}
+            tone={toneIndexForDay(dayEvents, item.event.id)}
+            liveTop={isLive ? drag.live!.top : undefined}
+            liveHeight={isLive ? drag.live!.height : undefined}
+            dragging={Boolean(isLive)}
+            onPointerDown={drag.onPointerDown}
+            onPointerMove={drag.onPointerMove}
+            onPointerUp={drag.onPointerUp}
+            onPointerCancel={drag.onPointerCancel}
+          />
+        );
+      })}
+      {overflow.map((o) => (
+        <LaneOverflowChip
+          key={o.key}
+          overflow={o}
+          dayEvents={dayEvents}
+          onEventClick={onEventClick}
+        />
+      ))}
+    </div>
+  );
+}
+
 function WeekView({
   currentDate,
   events,
   onEventClick,
-  onDragStart,
-  onDragEnd,
-  onDrop,
-  getColorClasses,
+  onEventMove,
+  onDragStart: _onDragStart,
+  onDragEnd: _onDragEnd,
+  onDrop: _onDrop,
+  onSlotClick,
   peekEventId,
 }: {
   currentDate: Date;
   events: Event[];
   onEventClick: (event: Event) => void;
-  onDragStart: (event: Event) => void;
-  onDragEnd: () => void;
-  onDrop: (date: Date, hour: number) => void;
-  getColorClasses: (color: string) => { bg: string; text: string; name: string };
+  onEventMove: (event: Event, start: Date, end: Date) => void;
+  onDragStart?: (event: Event) => void;
+  onDragEnd?: () => void;
+  onDrop?: (date: Date, hour: number) => void;
+  onSlotClick?: (date: Date, hour: number) => void;
   peekEventId?: string | null;
 }) {
+  void _onDragStart;
+  void _onDragEnd;
+  void _onDrop;
   const startOfWeek = new Date(currentDate);
   startOfWeek.setDate(currentDate.getDate() - currentDate.getDay());
-
   const weekDays = Array.from({ length: 7 }, (_, i) => {
     const day = new Date(startOfWeek);
     day.setDate(startOfWeek.getDate() + i);
     return day;
   });
-
-  const hours = visibleHours(events);
-
-  const getEventsForDayAndHour = (date: Date, hour: number) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.startTime);
-      const eventHour = eventDate.getHours();
-      return (
-        eventDate.getDate() === date.getDate() &&
-        eventDate.getMonth() === date.getMonth() &&
-        eventDate.getFullYear() === date.getFullYear() &&
-        eventHour === hour
-      );
-    });
-  };
+  const weekEvents = events.filter((e) =>
+    weekDays.some((d) => sameDay(e.startTime, d)),
+  );
+  const { first, hours } = rangeHours(weekEvents);
+  const height = hours.length * PX_PER_HOUR + GRID_BOTTOM_PAD;
 
   return (
-    <div className={cn(calendarSurfaceClass, "overflow-auto")}>
-      <div className="grid grid-cols-8 border-b border-white/[0.06]">
-        <div className="border-r border-white/[0.06] px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-white/35 sm:py-3 sm:text-xs">
-          Horário
-        </div>
-        {weekDays.map((day) => {
-          const isToday = day.toDateString() === new Date().toDateString();
-          return (
-            <div
-              key={day.toISOString()}
-              className="border-r border-white/[0.06] px-2 py-2.5 text-center text-[10px] font-semibold uppercase tracking-[0.08em] text-white/35 last:border-r-0 sm:py-3 sm:text-xs"
-            >
-              <div className="hidden sm:block">
-                {day.toLocaleDateString("pt-BR", { weekday: "short" })}
-              </div>
-              <div className="sm:hidden">
-                {day.toLocaleDateString("pt-BR", { weekday: "narrow" })}
-              </div>
+    <div className="overflow-x-auto">
+      <div className="min-w-[640px]">
+        <div className="grid grid-cols-[48px_repeat(7,minmax(0,1fr))] border-b border-white/[0.04] sm:grid-cols-[56px_repeat(7,minmax(0,1fr))]">
+          <div />
+          {weekDays.map((day) => {
+            const isToday = day.toDateString() === new Date().toDateString();
+            return (
               <div
-                className={cn(
-                  "mx-auto mt-0.5 text-[10px] sm:text-xs",
-                  isToday
-                    ? "flex h-6 w-6 items-center justify-center rounded-full bg-white font-semibold text-black"
-                    : "text-[var(--ff-muted)]",
-                )}
+                key={day.toISOString()}
+                className="px-1 py-2 text-center text-[11px] text-white/40 sm:text-[12px]"
               >
-                {isToday ? (
-                  day.getDate()
-                ) : (
-                  day.toLocaleDateString("pt-BR", {
-                    month: "short",
-                    day: "numeric",
-                  })
-                )}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-      <div className="grid grid-cols-8">
-        {hours.map((hour) => (
-          <React.Fragment key={`hour-${hour}`}>
-            <div className="border-b border-r border-white/[0.06] p-1 text-[10px] text-white/35 sm:p-2 sm:text-xs">
-              {hour.toString().padStart(2, "0")}:00
-            </div>
-            {weekDays.map((day) => {
-              const dayEvents = getEventsForDayAndHour(day, hour);
-              return (
-                <div
-                  key={`${day.toISOString()}-${hour}`}
-                  className="min-h-12 border-b border-r border-white/[0.06] p-0.5 transition-colors hover:bg-white/[0.04] last:border-r-0 sm:min-h-16 sm:p-1"
-                  onDragOver={(e) => e.preventDefault()}
-                  onDrop={() => onDrop(day, hour)}
-                >
-                  <div className="space-y-1">
-                    {dayEvents.map((event) => (
-                      <EventCard
-                        key={event.id}
-                        event={event}
-                        onEventClick={onEventClick}
-                        onDragStart={onDragStart}
-                        onDragEnd={onDragEnd}
-                        getColorClasses={getColorClasses}
-                        variant="default"
-                        peekEventId={peekEventId}
-                      />
-                    ))}
-                  </div>
+                <div className="uppercase tracking-wide">
+                  {day.toLocaleDateString("pt-BR", { weekday: "short" })}
                 </div>
-              );
-            })}
-          </React.Fragment>
-        ))}
+                <div
+                  className={cn(
+                    "mx-auto mt-1 flex h-7 w-7 items-center justify-center rounded-full text-[13px]",
+                    isToday
+                      ? "bg-white font-semibold text-black"
+                      : "text-white/80",
+                  )}
+                >
+                  {day.getDate()}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+        <div className="grid grid-cols-[48px_repeat(7,minmax(0,1fr))] sm:grid-cols-[56px_repeat(7,minmax(0,1fr))]">
+          <div className="relative overflow-hidden" style={{ height }}>
+            {hours.map((hour, i) => (
+              <div
+                key={hour}
+                className="absolute inset-x-0 pr-2 text-right text-[10px] leading-none text-white/30"
+                style={{ top: i * PX_PER_HOUR + 2 }}
+              >
+                {hour.toString().padStart(2, "0")}:00
+              </div>
+            ))}
+          </div>
+          {weekDays.map((day) => (
+            <TimeGridColumn
+              key={day.toISOString()}
+              day={day}
+              events={weekEvents}
+              hours={hours}
+              dayStartHour={first}
+              onEventClick={onEventClick}
+              onEventMove={onEventMove}
+              onSlotClick={onSlotClick}
+              peekEventId={peekEventId}
+              dense
+            />
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -1102,71 +1621,53 @@ function DayView({
   currentDate,
   events,
   onEventClick,
-  onDragStart,
-  onDragEnd,
-  onDrop,
-  getColorClasses,
+  onEventMove,
+  onDragStart: _onDragStart,
+  onDragEnd: _onDragEnd,
+  onDrop: _onDrop,
+  onSlotClick,
   peekEventId,
 }: {
   currentDate: Date;
   events: Event[];
   onEventClick: (event: Event) => void;
-  onDragStart: (event: Event) => void;
-  onDragEnd: () => void;
-  onDrop: (date: Date, hour: number) => void;
-  getColorClasses: (color: string) => { bg: string; text: string; name: string };
+  onEventMove: (event: Event, start: Date, end: Date) => void;
+  onDragStart?: (event: Event) => void;
+  onDragEnd?: () => void;
+  onDrop?: (date: Date, hour: number) => void;
+  onSlotClick?: (date: Date, hour: number) => void;
   peekEventId?: string | null;
 }) {
-  const hours = visibleHours(events);
-
-  const getEventsForHour = (hour: number) => {
-    return events.filter((event) => {
-      const eventDate = new Date(event.startTime);
-      const eventHour = eventDate.getHours();
-      return (
-        eventDate.getDate() === currentDate.getDate() &&
-        eventDate.getMonth() === currentDate.getMonth() &&
-        eventDate.getFullYear() === currentDate.getFullYear() &&
-        eventHour === hour
-      );
-    });
-  };
+  void _onDragStart;
+  void _onDragEnd;
+  void _onDrop;
+  const dayEvents = events.filter((e) => sameDay(e.startTime, currentDate));
+  const { first, hours } = rangeHours(dayEvents);
+  const height = hours.length * PX_PER_HOUR + GRID_BOTTOM_PAD;
 
   return (
-    <div className={cn(calendarSurfaceClass, "overflow-auto")}>
-      <div className="space-y-0">
-        {hours.map((hour) => {
-          const hourEvents = getEventsForHour(hour);
-          return (
-            <div
-              key={hour}
-              className="flex border-b border-white/[0.06] last:border-b-0"
-              onDragOver={(e) => e.preventDefault()}
-              onDrop={() => onDrop(currentDate, hour)}
-            >
-              <div className="w-14 flex-shrink-0 border-r border-white/[0.06] p-2 text-xs text-white/35 sm:w-20 sm:p-3 sm:text-sm">
-                {hour.toString().padStart(2, "0")}:00
-              </div>
-              <div className="min-h-16 flex-1 p-1 transition-colors hover:bg-white/[0.04] sm:min-h-20 sm:p-2">
-                <div className="space-y-2">
-                  {hourEvents.map((event) => (
-                    <EventCard
-                      key={event.id}
-                      event={event}
-                      onEventClick={onEventClick}
-                      onDragStart={onDragStart}
-                      onDragEnd={onDragEnd}
-                      getColorClasses={getColorClasses}
-                      variant="detailed"
-                      peekEventId={peekEventId}
-                    />
-                  ))}
-                </div>
-              </div>
-            </div>
-          );
-        })}
+    <div className="grid grid-cols-[48px_minmax(0,1fr)] overflow-x-hidden sm:grid-cols-[56px_minmax(0,1fr)]">
+      <div className="relative overflow-hidden" style={{ height }}>
+        {hours.map((hour, i) => (
+          <div
+            key={hour}
+            className="absolute inset-x-0 pr-2 text-right text-[10px] leading-none text-white/30 sm:text-[11px]"
+            style={{ top: i * PX_PER_HOUR + 2 }}
+          >
+            {hour.toString().padStart(2, "0")}:00
+          </div>
+        ))}
       </div>
+      <TimeGridColumn
+        day={currentDate}
+        events={dayEvents}
+        hours={hours}
+        dayStartHour={first}
+        onEventClick={onEventClick}
+        onEventMove={onEventMove}
+        onSlotClick={onSlotClick}
+        peekEventId={peekEventId}
+      />
     </div>
   );
 }
@@ -1179,12 +1680,10 @@ function sentenceCase(value: string) {
 function ListView({
   events,
   onEventClick,
-  getColorClasses,
   peekEventId,
 }: {
   events: Event[];
   onEventClick: (event: Event) => void;
-  getColorClasses: (color: string) => { bg: string; text: string; name: string };
   peekEventId?: string | null;
 }) {
   const sortedEvents = [...events].sort(
@@ -1199,9 +1698,7 @@ function ListView({
         month: "long",
         day: "numeric",
       });
-      if (!acc[dateKey]) {
-        acc[dateKey] = [];
-      }
+      if (!acc[dateKey]) acc[dateKey] = [];
       acc[dateKey].push(event);
       return acc;
     },
@@ -1209,15 +1706,15 @@ function ListView({
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-5">
       {Object.entries(groupedEvents).map(([date, dateEvents]) => (
-        <div key={date} className="space-y-3">
-          <h3 className="text-xs font-semibold text-white/55 sm:text-sm">
+        <div key={date}>
+          <h3 className="mb-1.5 text-[11px] font-medium uppercase tracking-[0.06em] text-white/35">
             {sentenceCase(date)}
           </h3>
-          <div className="space-y-2">
+          <div className="divide-y divide-white/[0.04]">
             {dateEvents.map((event) => {
-              const colorClasses = getColorClasses(event.color);
+              const tone = toneIndexForDay(dateEvents, event.id);
               return (
                 <div
                   key={event.id}
@@ -1233,77 +1730,46 @@ function ListView({
                     }
                   }}
                   className={cn(
-                    "group cursor-pointer rounded-2xl bg-white/[0.03] p-3 outline-none transition-colors duration-200 hover:bg-white/[0.06] focus-visible:ring-2 focus-visible:ring-white/40 sm:p-4",
-                    peekEventId === event.id && "bg-white/[0.07]",
+                    "flex cursor-pointer items-start gap-3 py-3 outline-none transition hover:bg-white/[0.03] focus-visible:bg-white/[0.04]",
+                    peekEventId === event.id && "bg-white/[0.04]",
                   )}
                 >
-                    <div className="flex items-start gap-2 sm:gap-3">
-                      <div
-                        className={cn(
-                          "mt-1 h-2.5 w-2.5 rounded-full sm:h-3 sm:w-3",
-                          colorClasses.bg,
-                        )}
-                      />
-                      <div className="min-w-0 flex-1">
-                        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-                          <div className="min-w-0">
-                            <h4 className="truncate text-sm font-semibold text-white transition-colors group-hover:text-white/90 sm:text-base">
-                              {event.title}
-                            </h4>
-                            {event.description && (
-                              <p className="mt-1 line-clamp-2 text-xs text-[var(--ff-muted)] sm:text-sm">
-                                {event.description}
-                              </p>
-                            )}
-                          </div>
-                          <div className="flex flex-wrap gap-1">
-                            {event.category && (
-                              <Badge variant="secondary" className="text-xs">
-                                {event.category}
-                              </Badge>
-                            )}
-                          </div>
-                        </div>
-                        <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] text-[var(--ff-muted)] sm:gap-4 sm:text-xs">
-                          <div className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {event.startTime.toLocaleTimeString("pt-BR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}{" "}
-                            -{" "}
-                            {event.endTime.toLocaleTimeString("pt-BR", {
-                              hour: "2-digit",
-                              minute: "2-digit",
-                            })}
-                          </div>
-                          {event.tags && event.tags.length > 0 && (
-                            <div className="flex flex-wrap gap-1">
-                              {event.tags.map((tag) => (
-                                <Badge
-                                  key={tag}
-                                  variant="outline"
-                                  className="h-4 text-[10px] sm:h-5 sm:text-xs"
-                                >
-                                  {tag}
-                                </Badge>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      </div>
+                  <span
+                    className={cn(
+                      "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+                      tone === 0 ? eventDotClass(event.color) : "",
+                    )}
+                    style={eventDotStyle(event.color, tone)}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-baseline justify-between gap-3">
+                      <h4 className="truncate text-[14px] font-medium text-white">
+                        {event.title}
+                      </h4>
+                      <span className="shrink-0 tabular-nums text-[12px] text-white/40">
+                        {formatClock(event.startTime)}
+                      </span>
                     </div>
+                    {event.description ? (
+                      <p className="mt-0.5 line-clamp-1 text-[12px] text-white/40">
+                        {event.description}
+                      </p>
+                    ) : null}
+                    {event.category || (event.tags && event.tags.length > 0) ? (
+                      <div className="mt-1.5 flex flex-wrap gap-1.5 text-[11px] text-white/35">
+                        {event.category ? <span>{event.category}</span> : null}
+                        {event.tags?.map((tag) => (
+                          <span key={tag}>· {tag}</span>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
                 </div>
               );
             })}
           </div>
         </div>
       ))}
-      {sortedEvents.length === 0 && (
-        <div className="py-12 text-center text-sm text-[var(--ff-muted)] sm:text-base">
-          Nenhum evento encontrado
-        </div>
-      )}
     </div>
   );
 }

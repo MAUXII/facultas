@@ -83,6 +83,8 @@ export async function listAvisoAgendaEvents(): Promise<Event[]> {
         category: "Aviso",
         tags: community ? [community] : [],
         locked: true,
+        lockKind: "aviso",
+        communityId: row.community_id,
       } satisfies Event,
     ];
   });
